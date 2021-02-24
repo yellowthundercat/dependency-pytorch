@@ -2,3 +2,5 @@
 
 # package
 - torch (https://pytorch.org/)
+- matplotlib
+- torchtext

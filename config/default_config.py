@@ -4,7 +4,6 @@ class Config:
 	def __init__(self):
 		# general
 		self.model_name = 'test_model'
-		self.use_cuda = False
 		self.mode = 'train'  # option: 'train', 'evaluate', 'annotate'
 
 		# file location
@@ -18,8 +17,11 @@ class Config:
 		self.input_filename = 'input.txt'
 		self.output_filename = 'output.txt'
 
+		# word level
+		self.use_vn_pos = True
+
 		# train
-		self.epoch = 1
+		self.epoch = 2
 		self.batch_size = 32
 
 		# other
