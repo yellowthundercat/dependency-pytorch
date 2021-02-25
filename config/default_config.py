@@ -19,9 +19,16 @@ class Config:
 
 		# word level
 		self.use_vn_pos = True
+		self.word_emb_dim = 768
+		self.pos_emb_dim = 30
+
+		#sentence level
+		self.rnn_size = 256
+		self.rnn_depth = 3
+		self.mlp_size = 256
 
 		# train
-		self.epoch = 2
+		self.epoch = 30
 		self.batch_size = 32
 
 		# other

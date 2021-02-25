@@ -34,8 +34,9 @@ class DependencyParser:
 		self.WORD.build_vocab(train_examples, max_size=10000)
 		self.POS.build_vocab(train_examples)
 
-		self.model = EdgeFactoredParser(self.fields, word_emb_dim=300, pos_emb_dim=32, rnn_size=256, rnn_depth=3,
-																		mlp_size=256, update_pretrained=False)
+		self.model = EdgeFactoredParser(self.fields, word_emb_dim=config.word_emb_dim, pos_emb_dim=config.pos_emb_dim,
+																		rnn_size=config.rnn_size, rnn_depth=config.rnn_depth,
+																		mlp_size=config.mlp_size, update_pretrained=False)
 		self.model.to(self.device)
 		train_iterator = torchtext.data.BucketIterator(
 			train_examples,
@@ -94,6 +95,7 @@ class DependencyParser:
 		plt.plot(history['val_loss'])
 		plt.plot(history['uas'])
 		plt.legend(['training loss', 'validation loss', 'UAS'])
+		plt.show()
 
 	def evaluate(self, config):
 		pass
