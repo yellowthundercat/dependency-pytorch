@@ -47,6 +47,7 @@ def pad_mask(batch):
 	return wrap(padded_batch)
 
 def read_data(filename, tokenizer, phobert):
+	sentence_count = 0
 	input_file = open(filename, encoding='utf-8')
 	sentence_list = []
 	sentence = []
@@ -58,6 +59,9 @@ def read_data(filename, tokenizer, phobert):
 			if len(sentence) > 1:
 				sentence_list.append(_get_useful_column_ud(sentence, tokenizer, phobert))
 				sentence = []
+				sentence_count += 1
+				if sentence_count % 100 is True:
+					print(f'loading finish: {sentence_count} sentence')
 		else:
 			sentence.append(line.split('\t'))
 	if len(sentence) > 1:
@@ -72,11 +76,9 @@ def preprocess_word(word):
 
 class Sentence:
 	def __init__(self, word_list, ud_pos_list, vn_pos_list, head_list, dependency_list, tokenizer, phobert):
-		# print(word_list)
 		cls_id = 0
 		sep_id = 2
 		input_ids = [cls_id]
-		# print(len(input_ids))
 		last_index_position_list = [1]
 		# get encode index from word
 		for word in word_list:
@@ -86,7 +88,6 @@ class Sentence:
 		input_ids.append(sep_id)
 		# get embedding of full sentence
 		input_ids = torch.tensor([input_ids])
-		# print(input_ids.size())
 		with torch.no_grad():
 			features = phobert(input_ids)[0][0]
 		# get embedding of each word
