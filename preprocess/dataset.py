@@ -60,7 +60,7 @@ def read_data(filename, tokenizer, phobert):
 				sentence_list.append(_get_useful_column_ud(sentence, tokenizer, phobert))
 				sentence = []
 				sentence_count += 1
-				if sentence_count % 100 is True:
+				if sentence_count % 100 == 0:
 					print(f'loading finish: {sentence_count} sentence')
 		else:
 			sentence.append(line.split('\t'))
