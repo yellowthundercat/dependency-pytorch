@@ -79,6 +79,7 @@ class DependencyParser:
 			t1 = time.time()
 			print(f'Epoch {epoch_index}: train loss = {train_loss:.4f}, val loss = {val_loss:.4f}, UAS = {uas:.4f}, time = {t1 - t0:.4f}')
 
+		torch.save(self.config, self.config.config_file)
 		utils.show_history_graph(history)
 		print('finish training')
 		print('best uas:', best_uas)

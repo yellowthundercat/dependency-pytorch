@@ -4,7 +4,7 @@ class Config:
 	def __init__(self):
 		# general
 		self.model_name = 'test_model'
-		self.mode = 'annotate'  # option: 'train', 'evaluate', 'annotate'
+		self.mode = 'train'  # option: 'train', 'evaluate', 'annotate'
 
 		# file location
 		self.data_folder = 'data'

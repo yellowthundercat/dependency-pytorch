@@ -112,7 +112,7 @@ class Sentence:
 
 def _get_useful_column_ud(sentence, tokenizer):
 	# word, ud pos, vn pos, head index, dependency label
-	sentence = [[0, ROOT_TOKEN, 2, ROOT_TAG, ROOT_TAG, 5, 0, ROOT_LABEL, 8]] + sentence
+	# sentence = [[0, ROOT_TOKEN, 2, ROOT_TAG, ROOT_TAG, 5, 0, ROOT_LABEL, 8]] + sentence
 	word_list = []
 	ud_pos_list = []
 	vn_pos_list = []
