@@ -69,8 +69,8 @@ def read_data(filename, tokenizer):
 				sentence_list.append(_get_useful_column_ud(sentence, tokenizer))
 				sentence = []
 				sentence_count += 1
-				if sentence_count > 2000:
-					break
+				# if sentence_count > 20:
+				# 	break
 		else:
 			sentence.append(line.split('\t'))
 	if len(sentence) > 1:
@@ -95,6 +95,7 @@ class Sentence:
 			input_ids += token[1:(len(token)-1)]
 			last_index_position_list.append(len(input_ids))
 		input_ids.append(sep_id)
+		last_index_position_list.append(len(input_ids))
 		# get embedding of full sentence
 		# input_ids = torch.tensor([input_ids])
 		self.input_ids = input_ids
@@ -223,7 +224,7 @@ class Dataset:
 				last_index_position_list = last_index_position[sentence_index]
 				for word_index in range(len(last_index_position_list) - 2):
 					word_emb = features[sentence_index-i][last_index_position_list[word_index]:last_index_position_list[word_index+1]]
-					word_embedding.append(torch.sum(word_emb, 0))
+					word_embedding.append(torch.sum(word_emb, 0).numpy())
 				self.words.append(word_embedding)
 
 	def order(self):

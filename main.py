@@ -42,8 +42,10 @@ class DependencyParser:
 			stats = Counter()
 
 			train_batches = self.corpus.train.batches(self.config.batch_size, length_ordered=self.config.length_ordered)
+			train_batch_length = 0
 			self.model.train()
 			for batch in train_batches:
+				train_batch_length += 1
 				words, tags, heads, labels, masks = batch
 				loss = self.model(words, tags, heads, labels, masks)
 				optimizer.zero_grad()
@@ -51,7 +53,7 @@ class DependencyParser:
 				optimizer.step()
 				stats['train_loss'] += loss.item()
 
-			train_loss = stats['train_loss'] / len(train_batches)
+			train_loss = stats['train_loss'] / train_batch_length
 			history['train_loss'].append(train_loss)
 
 			self.model.eval()

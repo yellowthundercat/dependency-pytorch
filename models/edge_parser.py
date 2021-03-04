@@ -27,7 +27,7 @@ class EdgeFactoredParser(nn.Module):
 		# Randomly replace some of the positions in the word and postag tensors with a zero.
 		# This solution is a bit hacky because we assume that zero corresponds to the "unknown" token.
 		w_dropout_mask = (torch.rand(size=words.shape, device=words.device) > p_drop).long()
-		p_dropout_mask = (torch.rand(size=words.shape, device=words.device) > p_drop).long()
+		p_dropout_mask = (torch.rand(size=postags.shape, device=words.device) > p_drop).long()
 		return words * w_dropout_mask, postags * p_dropout_mask
 
 	def forward(self, words, postags, heads, labels, masks, evaluate=False):
@@ -43,7 +43,7 @@ class EdgeFactoredParser(nn.Module):
 		# where we have a padding token. So we create a mask that will be zero for those
 		# positions and one elsewhere.
 		# pad_mask = (words != self.pad_id).float()
-		pad_mask = masks
+		pad_mask = masks.float()
 
 		loss = self.compute_loss(edge_scores, heads, pad_mask)
 
