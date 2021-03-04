@@ -205,12 +205,12 @@ class Dataset:
 		n = len(input_ids)
 		batch_order = list(range(0, n, batch_size))
 		for i in batch_order:
-			if i-last_print > 50:
+			if i-last_print > 500:
 				print('running embedding', i)
 				last_print = i
 			batch_input_ids = input_ids[i:i+batch_size]
 			padded_input_ids = pad_phobert(batch_input_ids)
-			padded_input_ids.to(device)
+			# padded_input_ids.to(device)
 			with torch.no_grad():
 				features = phobert(padded_input_ids)[0]
 			for sentence_index in range(i, min(n, i+batch_size)):
@@ -262,7 +262,7 @@ class Corpus:
 	def __init__(self, config, device):
 		print('preparing corpus')
 		phobert = AutoModel.from_pretrained("vinai/phobert-base")
-		phobert.to(device)
+		# phobert.to(device)
 		tokenizer = AutoTokenizer.from_pretrained("vinai/phobert-base")
 
 		train_list = read_data(config.train_file, tokenizer)
