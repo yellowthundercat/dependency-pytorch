@@ -33,6 +33,15 @@ def pad(batch, pad_word=PAD_INDEX):
 		padded_batch.append(padded)
 	return wrap(padded_batch)
 
+def pad_phobert(batch, pad_word=1):
+	lens = list(map(len, batch))
+	max_len = max(lens)
+	padded_batch = []
+	for k, seq in zip(lens, batch):
+		padded = seq + (max_len - k) * [pad_word]
+		padded_batch.append(padded)
+	return torch.tensor(padded_batch)
+
 def pad_word_embedding(batch, config):
 	pad_word = config.word_emb_dim*[PAD_INDEX]
 	return pad(batch, pad_word)
@@ -47,7 +56,6 @@ def pad_mask(batch):
 	return wrap(padded_batch)
 
 def read_data(filename, tokenizer, phobert):
-	sentence_count = 0
 	input_file = open(filename, encoding='utf-8')
 	sentence_list = []
 	sentence = []
@@ -59,9 +67,6 @@ def read_data(filename, tokenizer, phobert):
 			if len(sentence) > 1:
 				sentence_list.append(_get_useful_column_ud(sentence, tokenizer, phobert))
 				sentence = []
-				sentence_count += 1
-				if sentence_count % 100 == 0:
-					print(f'loading finish: {sentence_count} sentence')
 		else:
 			sentence.append(line.split('\t'))
 	if len(sentence) > 1:
@@ -87,14 +92,9 @@ class Sentence:
 			last_index_position_list.append(len(input_ids))
 		input_ids.append(sep_id)
 		# get embedding of full sentence
-		input_ids = torch.tensor([input_ids])
-		with torch.no_grad():
-			features = phobert(input_ids)[0][0]
-		# get embedding of each word
-		self.word_embedding = []
-		for index, word in enumerate(word_list):
-			word_emb = features[last_index_position_list[index]:last_index_position_list[index+1]]
-			self.word_embedding.append(torch.sum(word_emb, 0))
+		# input_ids = torch.tensor([input_ids])
+		self.input_ids = input_ids
+		self.last_index_position = last_index_position_list
 
 		self.word = word_list
 		self.ud_pos = ud_pos_list
@@ -177,22 +177,49 @@ class Vocab:
 
 
 class Dataset:
-	def __init__(self, config, sentence_list, vocab):
+	def __init__(self, config, sentence_list, vocab, phobert):
 		self.words = []
 		self.tags = []
 		self.heads = []
 		self.labels = []
 		self.lengths = []
+		input_ids = []
+		last_index_position = []
 		self.config = config
 		for sentence in sentence_list:
 			self.lengths.append(sentence.length)
-			self.words.append(sentence.word_embedding)
+			# self.words.append(sentence.word_embedding)
 			tag_list = sentence.vn_pos
 			if not config.use_vn_pos:
 				tag_list = sentence.ud_pos
-			self.tags.append([vocab.t2i(tag) for tag in tag_list])
+			self.tags.append([vocab.t2i[tag] for tag in tag_list])
 			self.heads.append(sentence.head_index)
-			self.labels.append([vocab.l2i(label) for label in sentence.dependency_label])
+			self.labels.append([vocab.l2i[label] for label in sentence.dependency_label])
+			input_ids.append(sentence.input_ids)
+			last_index_position.append(sentence.last_index_position)
+		self.process_embedding(phobert, input_ids, last_index_position)
+
+	def process_embedding(self, phobert, input_ids, last_index_position):
+		last_print = 0
+		batch_size = self.config.phobert_batch_size
+		n = len(input_ids)
+		batch_order = list(range(0, n, batch_size))
+		for i in batch_order:
+			if i-last_print > 500:
+				print('running embedding', i)
+				last_print = i
+			batch_input_ids = input_ids[i:i+batch_size]
+			padded_input_ids = pad_phobert(batch_input_ids)
+			with torch.no_grad():
+				features = phobert(padded_input_ids)[0]
+			for sentence_index in range(i, min(n, i+batch_size)):
+				# get embedding of each word
+				word_embedding = []
+				last_index_position_list = last_index_position[sentence_index]
+				for word_index in range(len(last_index_position_list) - 2):
+					word_emb = features[sentence_index-i][last_index_position_list[word_index]:last_index_position_list[word_index+1]]
+					word_embedding.append(torch.sum(word_emb, 0))
+				self.words.append(word_embedding)
 
 	def order(self):
 		old_order = zip(range(len(self.lengths)), self.lengths)
@@ -244,9 +271,9 @@ class Corpus:
 			self.vocab = torch.load(config.vocab_file)
 		else:
 			self.vocab = Vocab(config, train_list + dev_list + test_list)
-		self.train = Dataset(config, train_list, self.vocab)
-		self.dev = Dataset(config, dev_list, self.vocab)
-		# self.test = Dataset(config, test_list, self.vocab)
+		self.train = Dataset(config, train_list, self.vocab, phobert)
+		self.dev = Dataset(config, dev_list, self.vocab, phobert)
+		# self.test = Dataset(config, test_list, self.vocab, phobert)
 
 
 
