@@ -8,7 +8,7 @@ import torchtext
 
 from config.default_config import Config
 from utils import utils
-from models.edge_parser import EdgeFactoredParser
+from models.parser import Parser
 from models.deep_biaffine import DeepBiaffine
 from preprocess import dataset
 
@@ -23,7 +23,7 @@ class DependencyParser:
 			self.model = torch.load(config.model_file)
 		else:
 			print('We will train model from scratch')
-			self.model = EdgeFactoredParser(len(self.corpus.vocab.t2i), config,
+			self.model = Parser(len(self.corpus.vocab.t2i), config,
 																			word_emb_dim=config.word_emb_dim, pos_emb_dim=config.pos_emb_dim,
 																			rnn_size=config.rnn_size, rnn_depth=config.rnn_depth,
 																			mlp_size=config.mlp_size, update_pretrained=False)

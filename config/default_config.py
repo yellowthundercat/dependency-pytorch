@@ -21,7 +21,8 @@ class Config:
 
 		# word level
 		self.use_vn_pos = True
-		self.word_emb_dim = 768
+		self.word_emb_dim = 30
+		self.phobert_dim = 768
 		self.pos_emb_dim = 30
 
 		#sentence level

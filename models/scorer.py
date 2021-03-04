@@ -1,6 +1,6 @@
 from torch import nn
 
-class BiaffineEdgeScorer(nn.Module):
+class BiaffineScorer(nn.Module):
 
 	def __init__(self, rnn_size, mlp_size):
 		super().__init__()

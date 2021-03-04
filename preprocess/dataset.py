@@ -17,21 +17,24 @@ ROOT_TAG = 'ROOT'
 ROOT_LABEL = '_root_'
 ROOT_INDEX = 2
 
-def wrap(batch):
+def wrap(batch, is_float=False):
 	"""Packages the batch as a Variable containing a LongTensor."""
-	wrapping = torch.autograd.Variable(torch.LongTensor(batch))
+	if is_float:
+		wrapping = torch.autograd.Variable(torch.Tensor(batch))
+	else:
+		wrapping = torch.autograd.Variable(torch.LongTensor(batch))
 	if torch.cuda.is_available():
 		wrapping = wrapping.cuda()
 	return wrapping
 
-def pad(batch, pad_word=PAD_INDEX):
+def pad(batch, pad_word=PAD_INDEX, is_float=False):
 	lens = list(map(len, batch))
 	max_len = max(lens)
 	padded_batch = []
 	for k, seq in zip(lens, batch):
 		padded = seq + (max_len - k) * [pad_word]
 		padded_batch.append(padded)
-	return wrap(padded_batch)
+	return wrap(padded_batch, is_float)
 
 def pad_phobert(batch, pad_word=1):
 	lens = list(map(len, batch))
@@ -43,8 +46,8 @@ def pad_phobert(batch, pad_word=1):
 	return torch.tensor(padded_batch)
 
 def pad_word_embedding(batch, config):
-	pad_word = config.word_emb_dim*[PAD_INDEX]
-	return pad(batch, pad_word)
+	pad_word = config.phobert_dim*[PAD_INDEX]
+	return pad(batch, pad_word, True)
 
 def pad_mask(batch):
 	lens = list(map(len, batch))
@@ -53,7 +56,7 @@ def pad_mask(batch):
 	for k in lens:
 		padded = k * [1] + (max_len - k) * [0]
 		padded_batch.append(padded)
-	return wrap(padded_batch)
+	return wrap(padded_batch, True)
 
 def read_data(filename, tokenizer):
 	sentence_count = 0
@@ -257,6 +260,7 @@ class Dataset:
 			self.order()
 		for i in batch_order:
 			words = pad_word_embedding(self.words[i:i + batch_size], self.config)
+			print(words[:2][:2])
 			tags = pad(self.tags[i:i + batch_size])
 			heads = pad(self.heads[i:i + batch_size])
 			labels = pad(self.labels[i:i + batch_size])

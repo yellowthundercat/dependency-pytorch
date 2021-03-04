@@ -1,20 +1,20 @@
 import torch
 
 from torch import nn
-from models.edge_scorer import BiaffineEdgeScorer
+from models.scorer import BiaffineScorer
 from models.encoder import RNNEncoder
 
-class EdgeFactoredParser(nn.Module):
+class Parser(nn.Module):
 
 	def __init__(self, pos_vocab_length, config, word_emb_dim, pos_emb_dim, rnn_size, rnn_depth, mlp_size, update_pretrained=False):
 		super().__init__()
 		self.config = config
 
 		# Sentence encoder module.
-		self.encoder = RNNEncoder(word_emb_dim, pos_vocab_length, pos_emb_dim, rnn_size, rnn_depth, update_pretrained)
+		self.encoder = RNNEncoder(config, word_emb_dim, pos_vocab_length, pos_emb_dim, rnn_size, rnn_depth, update_pretrained)
 
 		# Edge scoring module.
-		self.edge_scorer = BiaffineEdgeScorer(2 * rnn_size, mlp_size)
+		self.edge_scorer = BiaffineScorer(2 * rnn_size, mlp_size)
 
 		# To deal with the padding positions later, we need to know the
 		# encoding of the padding dummy word.
@@ -43,7 +43,7 @@ class EdgeFactoredParser(nn.Module):
 		# where we have a padding token. So we create a mask that will be zero for those
 		# positions and one elsewhere.
 		# pad_mask = (words != self.pad_id).float()
-		pad_mask = masks.float()
+		pad_mask = masks
 
 		loss = self.compute_loss(edge_scores, heads, pad_mask)
 

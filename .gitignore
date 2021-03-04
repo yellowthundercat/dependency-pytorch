@@ -135,3 +135,5 @@ Pipfile
 Pipfile.lock
 
 *.pt
+
+data/test_model/
