@@ -34,7 +34,7 @@ class Config:
 		# train
 		self.epoch = 30
 		self.batch_size = 128
-		self.phobert_batch_size = 64
+		self.phobert_batch_size = 4
 
 		# other
 		self.seed = 2712021

@@ -56,6 +56,7 @@ def pad_mask(batch):
 	return wrap(padded_batch)
 
 def read_data(filename, tokenizer):
+	sentence_count = 0
 	input_file = open(filename, encoding='utf-8')
 	sentence_list = []
 	sentence = []
@@ -67,6 +68,9 @@ def read_data(filename, tokenizer):
 			if len(sentence) > 1:
 				sentence_list.append(_get_useful_column_ud(sentence, tokenizer))
 				sentence = []
+				sentence_count += 1
+				if sentence_count > 2000:
+					break
 		else:
 			sentence.append(line.split('\t'))
 	if len(sentence) > 1:
