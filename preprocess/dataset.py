@@ -55,7 +55,7 @@ def pad_mask(batch):
 		padded_batch.append(padded)
 	return wrap(padded_batch)
 
-def read_data(filename, tokenizer, phobert):
+def read_data(filename, tokenizer):
 	input_file = open(filename, encoding='utf-8')
 	sentence_list = []
 	sentence = []
@@ -65,12 +65,12 @@ def read_data(filename, tokenizer, phobert):
 		line = line.strip()
 		if line == '' or line == '\n':
 			if len(sentence) > 1:
-				sentence_list.append(_get_useful_column_ud(sentence, tokenizer, phobert))
+				sentence_list.append(_get_useful_column_ud(sentence, tokenizer))
 				sentence = []
 		else:
 			sentence.append(line.split('\t'))
 	if len(sentence) > 1:
-		sentence_list.append(_get_useful_column_ud(sentence, tokenizer, phobert))
+		sentence_list.append(_get_useful_column_ud(sentence, tokenizer))
 	utils.log('Read file:', filename)
 	utils.log('Number of sentence:', len(sentence_list))
 	return sentence_list
@@ -80,7 +80,7 @@ def preprocess_word(word):
 	return re.sub(r'\d', '0', word.lower())
 
 class Sentence:
-	def __init__(self, word_list, ud_pos_list, vn_pos_list, head_list, dependency_list, tokenizer, phobert):
+	def __init__(self, word_list, ud_pos_list, vn_pos_list, head_list, dependency_list, tokenizer):
 		cls_id = 0
 		sep_id = 2
 		input_ids = [cls_id]
@@ -106,7 +106,7 @@ class Sentence:
 	def __str__(self):
 		return ' '.join(self.word)
 
-def _get_useful_column_ud(sentence, tokenizer, phobert):
+def _get_useful_column_ud(sentence, tokenizer):
 	# word, ud pos, vn pos, head index, dependency label
 	sentence = [[0, ROOT_TOKEN, 2, ROOT_TAG, ROOT_TAG, 5, 0, ROOT_LABEL, 8]] + sentence
 	word_list = []
@@ -120,7 +120,7 @@ def _get_useful_column_ud(sentence, tokenizer, phobert):
 		vn_pos_list.append(word[4])
 		head_index_list.append(int(word[6]))
 		dependency_label_list.append(word[7])
-	return Sentence(word_list, ud_pos_list, vn_pos_list, head_index_list, dependency_label_list, tokenizer, phobert)
+	return Sentence(word_list, ud_pos_list, vn_pos_list, head_index_list, dependency_label_list, tokenizer)
 
 class Vocab:
 	def __init__(self, config, sentence_list):
@@ -177,7 +177,7 @@ class Vocab:
 
 
 class Dataset:
-	def __init__(self, config, sentence_list, vocab, phobert):
+	def __init__(self, config, sentence_list, vocab, phobert, device):
 		self.words = []
 		self.tags = []
 		self.heads = []
@@ -197,9 +197,9 @@ class Dataset:
 			self.labels.append([vocab.l2i[label] for label in sentence.dependency_label])
 			input_ids.append(sentence.input_ids)
 			last_index_position.append(sentence.last_index_position)
-		self.process_embedding(phobert, input_ids, last_index_position)
+		self.process_embedding(phobert, input_ids, last_index_position, device)
 
-	def process_embedding(self, phobert, input_ids, last_index_position):
+	def process_embedding(self, phobert, input_ids, last_index_position, device):
 		last_print = 0
 		batch_size = self.config.phobert_batch_size
 		n = len(input_ids)
@@ -210,7 +210,7 @@ class Dataset:
 				last_print = i
 			batch_input_ids = input_ids[i:i+batch_size]
 			padded_input_ids = pad_phobert(batch_input_ids)
-			padded_input_ids.to(torch.device('cuda' if torch.cuda.is_available() else 'cpu'))
+			padded_input_ids.to(device)
 			with torch.no_grad():
 				features = phobert(padded_input_ids)[0]
 			for sentence_index in range(i, min(n, i+batch_size)):
@@ -259,22 +259,22 @@ class Dataset:
 			yield words, tags, heads, labels, masks
 
 class Corpus:
-	def __init__(self, config):
+	def __init__(self, config, device):
 		print('preparing corpus')
 		phobert = AutoModel.from_pretrained("vinai/phobert-base")
-		phobert.to(torch.device('cuda' if torch.cuda.is_available() else 'cpu'))
+		phobert.to(device)
 		tokenizer = AutoTokenizer.from_pretrained("vinai/phobert-base")
 
-		train_list = read_data(config.train_file, tokenizer, phobert)
-		dev_list = read_data(config.dev_file, tokenizer, phobert)
-		test_list = read_data(config.test_file, tokenizer, phobert)
+		train_list = read_data(config.train_file, tokenizer)
+		dev_list = read_data(config.dev_file, tokenizer)
+		test_list = read_data(config.test_file, tokenizer)
 
 		if os.path.exists(config.vocab_file):
 			self.vocab = torch.load(config.vocab_file)
 		else:
 			self.vocab = Vocab(config, train_list + dev_list + test_list)
-		self.train = Dataset(config, train_list, self.vocab, phobert)
-		self.dev = Dataset(config, dev_list, self.vocab, phobert)
+		self.train = Dataset(config, train_list, self.vocab, phobert, device)
+		self.dev = Dataset(config, dev_list, self.vocab, phobert, device)
 		# self.test = Dataset(config, test_list, self.vocab, phobert)
 
 

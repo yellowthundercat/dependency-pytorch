@@ -17,7 +17,7 @@ class DependencyParser:
 	def __init__(self, config):
 		self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 		self.config = config
-		self.corpus = dataset.Corpus(config)
+		self.corpus = dataset.Corpus(config, self.device)
 		if os.path.exists(config.model_file):
 			print('We will continue training')
 			self.model = torch.load(config.model_file)
