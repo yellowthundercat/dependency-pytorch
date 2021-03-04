@@ -6,21 +6,19 @@ from models.encoder import RNNEncoder
 
 class EdgeFactoredParser(nn.Module):
 
-	def __init__(self, fields, word_emb_dim, pos_emb_dim, rnn_size, rnn_depth, mlp_size, update_pretrained=False):
+	def __init__(self, pos_vocab_length, config, word_emb_dim, pos_emb_dim, rnn_size, rnn_depth, mlp_size, update_pretrained=False):
 		super().__init__()
-
-		word_field = fields[0][1]
-		pos_field = fields[1][1]
+		self.config = config
 
 		# Sentence encoder module.
-		self.encoder = RNNEncoder(word_field, word_emb_dim, pos_field, pos_emb_dim, rnn_size, rnn_depth, update_pretrained)
+		self.encoder = RNNEncoder(word_emb_dim, pos_vocab_length, pos_emb_dim, rnn_size, rnn_depth, update_pretrained)
 
 		# Edge scoring module.
 		self.edge_scorer = BiaffineEdgeScorer(2 * rnn_size, mlp_size)
 
 		# To deal with the padding positions later, we need to know the
 		# encoding of the padding dummy word.
-		self.pad_id = word_field.vocab.stoi[word_field.pad_token]
+		# self.pad_id = word_field.vocab.stoi[word_field.pad_token]
 
 		# Loss function that we will use during training.
 		self.loss = torch.nn.CrossEntropyLoss(reduction='none')
@@ -32,11 +30,11 @@ class EdgeFactoredParser(nn.Module):
 		p_dropout_mask = (torch.rand(size=words.shape, device=words.device) > p_drop).long()
 		return words * w_dropout_mask, postags * p_dropout_mask
 
-	def forward(self, words, postags, heads, evaluate=False):
+	def forward(self, words, postags, heads, labels, masks, evaluate=False):
 
 		if self.training:
 			# If we are training, apply the word/tag dropout to the word and tag tensors.
-			words, postags = self.word_tag_dropout(words, postags, 0.25)
+			words, postags = self.word_tag_dropout(words, postags, self.config.drop_out_rate)
 
 		encoded = self.encoder(words, postags)
 		edge_scores = self.edge_scorer(encoded)
@@ -44,7 +42,8 @@ class EdgeFactoredParser(nn.Module):
 		# We don't want to evaluate the loss or attachment score for the positions
 		# where we have a padding token. So we create a mask that will be zero for those
 		# positions and one elsewhere.
-		pad_mask = (words != self.pad_id).float()
+		# pad_mask = (words != self.pad_id).float()
+		pad_mask = masks
 
 		loss = self.compute_loss(edge_scores, heads, pad_mask)
 
