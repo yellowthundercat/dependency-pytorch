@@ -5,9 +5,11 @@ class Config:
 		# general
 		self.model_name = 'test_model'
 		self.mode = 'train'  # option: 'train', 'evaluate', 'annotate'
+		self.use_small_subset = True
 
 		# file location
 		self.data_folder = 'data'
+		self.corpus_file = os.path.join(self.data_folder, 'corpus.pickle')
 		self.save_folder = os.path.join(self.data_folder, self.model_name)
 		self.model_file = os.path.join(self.save_folder, 'model.pt')
 		self.config_file = os.path.join(self.save_folder, 'config.pickle')

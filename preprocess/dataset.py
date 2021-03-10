@@ -58,7 +58,7 @@ def pad_mask(batch):
 		padded_batch.append(padded)
 	return wrap(padded_batch, True)
 
-def read_data(filename, tokenizer):
+def read_data(filename, tokenizer, use_small_subset=False):
 	sentence_count = 0
 	input_file = open(filename, encoding='utf-8')
 	sentence_list = []
@@ -72,8 +72,8 @@ def read_data(filename, tokenizer):
 				sentence_list.append(_get_useful_column_ud(sentence, tokenizer))
 				sentence = []
 				sentence_count += 1
-				# if sentence_count > 20:
-				# 	break
+				if use_small_subset and sentence_count > 20:
+					break
 		else:
 			sentence.append(line.split('\t'))
 	if len(sentence) > 1:
@@ -130,15 +130,18 @@ def _get_useful_column_ud(sentence, tokenizer):
 		dependency_label_list.append(word[7])
 	return Sentence(word_list, ud_pos_list, vn_pos_list, head_index_list, dependency_label_list, tokenizer)
 
+def default_value():
+	return UNK_INDEX
+
 class Vocab:
 	def __init__(self, config, sentence_list):
-		self.w2i = defaultdict(lambda: UNK_INDEX)
-		self.t2i = defaultdict(lambda: UNK_INDEX)
-		self.l2i = defaultdict(lambda: UNK_INDEX)
+		self.w2i = defaultdict(default_value)
+		self.t2i = defaultdict(default_value)
+		self.l2i = defaultdict(default_value)
 
-		self.i2w = defaultdict(lambda: UNK_TOKEN)
-		self.i2t = defaultdict(lambda: UNK_TOKEN)
-		self.i2l = defaultdict(lambda: UNK_TOKEN)
+		self.i2w = defaultdict(default_value)
+		self.i2t = defaultdict(default_value)
+		self.i2l = defaultdict(default_value)
 
 		self.add_word(PAD_TOKEN)
 		self.add_word(UNK_TOKEN)
@@ -260,7 +263,6 @@ class Dataset:
 			self.order()
 		for i in batch_order:
 			words = pad_word_embedding(self.words[i:i + batch_size], self.config)
-			print(words[:2][:2])
 			tags = pad(self.tags[i:i + batch_size])
 			heads = pad(self.heads[i:i + batch_size])
 			labels = pad(self.labels[i:i + batch_size])
@@ -269,14 +271,13 @@ class Dataset:
 
 class Corpus:
 	def __init__(self, config, device):
-		print('preparing corpus')
 		phobert = AutoModel.from_pretrained("vinai/phobert-base")
 		# phobert.to(device)
 		tokenizer = AutoTokenizer.from_pretrained("vinai/phobert-base")
 
-		train_list = read_data(config.train_file, tokenizer)
-		dev_list = read_data(config.dev_file, tokenizer)
-		test_list = read_data(config.test_file, tokenizer)
+		train_list = read_data(config.train_file, tokenizer, config.use_small_subset)
+		dev_list = read_data(config.dev_file, tokenizer, config.use_small_subset)
+		test_list = read_data(config.test_file, tokenizer, config.use_small_subset)
 
 		if os.path.exists(config.vocab_file):
 			self.vocab = torch.load(config.vocab_file)

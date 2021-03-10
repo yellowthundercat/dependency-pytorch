@@ -6,7 +6,7 @@ from models.encoder import RNNEncoder
 
 class Parser(nn.Module):
 
-	def __init__(self, pos_vocab_length, config, word_emb_dim, pos_emb_dim, rnn_size, rnn_depth, mlp_size, update_pretrained=False):
+	def __init__(self, pos_vocab_length, n_label, config, word_emb_dim, pos_emb_dim, rnn_size, rnn_depth, mlp_size, update_pretrained=False):
 		super().__init__()
 		self.config = config
 
@@ -14,11 +14,7 @@ class Parser(nn.Module):
 		self.encoder = RNNEncoder(config, word_emb_dim, pos_vocab_length, pos_emb_dim, rnn_size, rnn_depth, update_pretrained)
 
 		# Edge scoring module.
-		self.edge_scorer = BiaffineScorer(2 * rnn_size, mlp_size)
-
-		# To deal with the padding positions later, we need to know the
-		# encoding of the padding dummy word.
-		# self.pad_id = word_field.vocab.stoi[word_field.pad_token]
+		self.scorer = BiaffineScorer(2 * rnn_size, mlp_size, n_label)
 
 		# Loss function that we will use during training.
 		self.loss = torch.nn.CrossEntropyLoss(reduction='none')
@@ -37,7 +33,7 @@ class Parser(nn.Module):
 			words, postags = self.word_tag_dropout(words, postags, self.config.drop_out_rate)
 
 		encoded = self.encoder(words, postags)
-		edge_scores = self.edge_scorer(encoded)
+		arc_score, lab_score = self.scorer(encoded)
 
 		# We don't want to evaluate the loss or attachment score for the positions
 		# where we have a padding token. So we create a mask that will be zero for those
@@ -45,35 +41,54 @@ class Parser(nn.Module):
 		# pad_mask = (words != self.pad_id).float()
 		pad_mask = masks
 
-		loss = self.compute_loss(edge_scores, heads, pad_mask)
+		arc_loss = self.arc_loss(arc_score, heads, pad_mask)
+		lab_loss = self.lab_loss(lab_score, heads, labels, pad_mask)
+		loss = arc_loss + lab_loss
 
 		if evaluate:
-			n_errors, n_tokens = self.evaluate(edge_scores, heads, pad_mask)
+			n_errors, n_tokens = self.evaluate(arc_score, heads, pad_mask)
 			return loss, n_errors, n_tokens
 		else:
 			return loss
 
-	def compute_loss(self, edge_scores, heads, pad_mask):
-		n_sentences, n_words, _ = edge_scores.shape
-		edge_scores = edge_scores.view(n_sentences * n_words, n_words)
+	def arc_loss(self, arc_score, heads, pad_mask):
+		"""Compute the loss for the arc predictions."""
+		arc_score = arc_score.transpose(-1, -2).contiguous()  # [batch, sent_len, sent_len]
+		n_sentences, n_words, _ = arc_score.shape
+		edge_scores = arc_score.view(n_sentences * n_words, n_words)
 		heads = heads.view(n_sentences * n_words)
 		pad_mask = pad_mask.view(n_sentences * n_words)
 		loss = self.loss(edge_scores, heads)
 		avg_loss = loss.dot(pad_mask) / pad_mask.sum()
 		return avg_loss
 
-	def evaluate(self, edge_scores, heads, pad_mask):
-		n_sentences, n_words, _ = edge_scores.shape
-		edge_scores = edge_scores.view(n_sentences * n_words, n_words)
+	def lab_loss(self, lab_score, heads, labels, pad_mask):
+		"""Compute the loss for the label predictions on the gold arcs (heads)."""
+		heads = heads.unsqueeze(1).unsqueeze(2)  # [batch, 1, 1, sent_len]
+		heads = heads.expand(-1, lab_score.size(1), -1, -1)  # [batch, n_labels, 1, sent_len]
+		lab_score = torch.gather(lab_score, 2, heads).squeeze(2)  # [batch, n_labels, sent_len]
+		lab_score = lab_score.transpose(-1, -2)  # [batch, sent_len, n_labels]
+		lab_score = lab_score.contiguous().view(-1, lab_score.size(-1))  # [batch*sent_len, n_labels]
+		labels = labels.view(-1)  # [batch*sent_len]
+		pad_mask = pad_mask.view(-1)
+		loss = self.loss(lab_score, labels)
+		avg_loss = loss.dot(pad_mask) / pad_mask.sum()
+		return avg_loss
+
+	def evaluate(self, arc_score, heads, pad_mask):
+		arc_score = arc_score.transpose(-1, -2).contiguous()
+		n_sentences, n_words, _ = arc_score.shape
+		arc_score = arc_score.view(n_sentences * n_words, n_words)
 		heads = heads.view(n_sentences * n_words)
 		pad_mask = pad_mask.view(n_sentences * n_words)
 		n_tokens = pad_mask.sum()
-		predictions = edge_scores.argmax(dim=1)
+		predictions = arc_score.argmax(dim=1)
 		n_errors = (predictions != heads).float().dot(pad_mask)
 		return n_errors.item(), n_tokens.item()
 
 	def predict(self, words, postags):
 		# This method is used to parse a sentence when the model has been trained.
 		encoded = self.encoder(words, postags)
-		edge_scores = self.edge_scorer(encoded)
-		return edge_scores.argmax(dim=2)
+		arc_score = self.scorer(encoded)
+		arc_score = arc_score.transpose(-1, -2).contiguous()
+		return arc_score.argmax(dim=2)

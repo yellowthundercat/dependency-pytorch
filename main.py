@@ -17,13 +17,19 @@ class DependencyParser:
 	def __init__(self, config):
 		self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 		self.config = config
-		self.corpus = dataset.Corpus(config, self.device)
+		if os.path.exists(config.corpus_file):
+			print('load preprocessed corpus')
+			self.corpus = torch.load(config.corpus_file)
+		else:
+			print('preprocess corpus')
+			self.corpus = dataset.Corpus(config, self.device)
+			torch.save(self.corpus, config.corpus_file)
 		if os.path.exists(config.model_file):
 			print('We will continue training')
 			self.model = torch.load(config.model_file)
 		else:
 			print('We will train model from scratch')
-			self.model = Parser(len(self.corpus.vocab.t2i), config,
+			self.model = Parser(len(self.corpus.vocab.t2i), len(self.corpus.vocab.l2i), config,
 																			word_emb_dim=config.word_emb_dim, pos_emb_dim=config.pos_emb_dim,
 																			rnn_size=config.rnn_size, rnn_depth=config.rnn_depth,
 																			mlp_size=config.mlp_size, update_pretrained=False)

@@ -18,7 +18,7 @@ class RNNEncoder(nn.Module):
 		self.rnn = nn.LSTM(input_size=word_emb_dim + pos_emb_dim, hidden_size=rnn_size, batch_first=True, bidirectional=True, num_layers=rnn_depth)
 
 	def forward(self, words, postags):
-		# Look u
+		# Look up
 		# word_emb = self.word_embedding(words)
 		word_emb = self.word_project(words)
 		pos_emb = self.pos_embedding(postags)

@@ -137,3 +137,5 @@ Pipfile.lock
 *.pt
 
 data/test_model/
+
+data/corpus.pickle
