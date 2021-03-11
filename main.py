@@ -89,6 +89,7 @@ class DependencyParser:
 			history['las'].append(las)
 
 			if las > best_las:
+				print('save new best model')
 				torch.save(self.model, self.config.model_file)
 				best_las = las
 				best_epoch = epoch_index
@@ -99,7 +100,7 @@ class DependencyParser:
 			t1 = time.time()
 			print(f'Epoch {epoch_index}: train loss = {train_loss:.4f}, val loss = {val_loss:.4f}, UAS = {uas:.4f}, LAS = {las:.4f}, time = {t1 - t0:.4f}')
 
-		torch.save(self.config, self.config.config_file)
+		# torch.save(self.config, self.config.config_file)
 		# utils.show_history_graph(history)
 		print('finish training')
 		print('best uas:', best_uas)
@@ -134,6 +135,7 @@ class DependencyParser:
 	def annotate(self):
 		print('parsing')
 		input_file = open(self.config.annotate_file, encoding='utf-8')
+		sentence = input_file.read()
 
 
 

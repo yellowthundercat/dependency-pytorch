@@ -11,11 +11,11 @@ class Config:
 		self.data_folder = 'data'
 		self.corpus_file = os.path.join(self.data_folder, 'corpus.pickle')
 		self.parsing_file = os.path.join(self.data_folder, 'parsing.txt')
+		self.annotate_file = os.path.join(self.data_folder, 'annotate.txt')
 		self.save_folder = os.path.join(self.data_folder, self.model_name)
 		self.model_file = os.path.join(self.save_folder, 'model.pt')
 		self.config_file = os.path.join(self.save_folder, 'config.pickle')
 		self.vocab_file = os.path.join(self.save_folder, 'vocab.pickle')
-		self.annotate_file = os.path.join(self.save_folder, 'annotate.txt')
 		if self.use_small_subset:
 			self.train_file = os.path.join(self.data_folder, 'small_train.txt')
 			self.dev_file = os.path.join(self.data_folder, 'small_dev.txt')
@@ -42,8 +42,8 @@ class Config:
 		self.mlp_size = 256
 
 		# train
-		self.epoch = 10
-		self.batch_size = 128
+		self.epoch = 25
+		self.batch_size = 64
 		self.phobert_batch_size = 4
 
 		# other

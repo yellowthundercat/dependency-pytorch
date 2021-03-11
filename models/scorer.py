@@ -7,10 +7,15 @@ class BiAffine(nn.Module):
 		super(BiAffine, self).__init__()
 		self.input_dim = input_dim
 		self.output_dim = output_dim
-		self.U = nn.Parameter(torch.FloatTensor(output_dim, input_dim, input_dim))
+		self.U = nn.Parameter(torch.FloatTensor(output_dim, input_dim+1, input_dim+1))
 		nn.init.xavier_uniform_(self.U)
 
 	def forward(self, R_head, R_dep):
+		# add bias
+		R_head = torch.cat([R_head, R_head.new_ones(*R_head.size()[:-1], 1)], len(R_head.size()) - 1)
+		R_dep = torch.cat([R_dep, R_dep.new_ones(*R_dep.size()[:-1], 1)], len(R_dep.size()) - 1)
+
+		# calculate
 		R_head = R_head.unsqueeze(1)
 		R_dep = R_dep.unsqueeze(1)
 		Score = R_head @ self.U @ R_dep.transpose(-1, -2)

@@ -139,3 +139,5 @@ Pipfile.lock
 data/test_model/
 
 data/corpus.pickle
+
+data/parsing.txt
