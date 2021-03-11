@@ -1,6 +1,7 @@
 import os
 import sys
 import matplotlib.pyplot as plt
+from utils import conll18_ud_eval
 
 def ensure_dir(d, alert=True):
 	if not os.path.exists(d):
@@ -27,3 +28,19 @@ def show_history_graph(history):
 	plt.legend(['training loss', 'validation loss', 'UAS'])
 	plt.show()
 
+def write_conll(vocab, words, head_list, lab_list, lengths, file_name):
+	output_file = open(file_name, 'w', encoding='utf-8')
+	for index, sentence_length in enumerate(lengths):
+		word_index = 0
+		for word, head, lab in zip(words[index], head_list[index], lab_list[index]):
+			if word_index > 0:
+				output_file.write(f'{word_index}\t{word}\t{word}\t-\t-\t-\t{head}\t{vocab.i2l[lab]}\t-\t-\n')
+			word_index += 1
+		output_file.write('\n')
+
+# ud utils
+def ud_scores(gold_conllu_file, system_conllu_file):
+	gold_ud = conll18_ud_eval.load_conllu_file(gold_conllu_file)
+	system_ud = conll18_ud_eval.load_conllu_file(system_conllu_file)
+	evaluation = conll18_ud_eval.evaluate(gold_ud, system_ud)
+	return evaluation['UAS'].f1, evaluation['LAS'].f1

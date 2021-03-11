@@ -41,6 +41,7 @@ class DependencyParser:
 		history = defaultdict(list)
 
 		best_uas = 0.
+		best_las = 0.
 		best_epoch = 0
 
 		for epoch_index in range(1, self.config.epoch + 1):
@@ -52,7 +53,7 @@ class DependencyParser:
 			self.model.train()
 			for batch in train_batches:
 				train_batch_length += 1
-				words, tags, heads, labels, masks = batch
+				words, tags, heads, labels, masks, lengths, origin_words = batch
 				loss = self.model(words, tags, heads, labels, masks)
 				optimizer.zero_grad()
 				loss.backward()
@@ -63,35 +64,47 @@ class DependencyParser:
 			history['train_loss'].append(train_loss)
 
 			self.model.eval()
-			dev_batches = self.corpus.dev.batches(self.config.batch_size, length_ordered=True)
+			dev_batches = self.corpus.dev.batches(self.config.batch_size, length_ordered=False, origin_ordered=True)
 			dev_batch_length = 0
+			dev_word_list = []
+			dev_length_list = []
+			dev_head_list = []
+			dev_lab_list = []
 			with torch.no_grad():
 				for batch in dev_batches:
 					dev_batch_length += 1
-					words, tags, heads, labels, masks = batch
-					loss, n_err, n_tokens = self.model(words, tags, heads, labels, masks, evaluate=True)
+					words, tags, heads, labels, masks, lengths, origin_words = batch
+					loss, head_list, lab_list = self.model.predict_batch_with_loss(words, tags, heads, labels, masks, lengths)
 					stats['val_loss'] += loss.item()
-					stats['val_n_tokens'] += n_tokens
-					stats['val_n_err'] += n_err
+					dev_head_list += head_list
+					dev_lab_list += lab_list
+					dev_word_list += origin_words
+					dev_length_list += lengths
 
+			utils.write_conll(self.corpus.vocab, dev_word_list, dev_head_list, dev_lab_list, dev_length_list, self.config.parsing_file)
 			val_loss = stats['val_loss'] / dev_batch_length
-			uas = (stats['val_n_tokens'] - stats['val_n_err']) / stats['val_n_tokens']
+			uas, las = utils.ud_scores(self.config.dev_file, self.config.parsing_file)
 			history['val_loss'].append(val_loss)
 			history['uas'].append(uas)
+			history['las'].append(las)
 
-			if uas > best_uas:
+			if las > best_las:
 				torch.save(self.model, self.config.model_file)
-				best_uas = uas
+				best_las = las
 				best_epoch = epoch_index
 
+			if uas > best_las:
+				best_uas = uas
+
 			t1 = time.time()
-			print(f'Epoch {epoch_index}: train loss = {train_loss:.4f}, val loss = {val_loss:.4f}, UAS = {uas:.4f}, time = {t1 - t0:.4f}')
+			print(f'Epoch {epoch_index}: train loss = {train_loss:.4f}, val loss = {val_loss:.4f}, UAS = {uas:.4f}, LAS = {las:.4f}, time = {t1 - t0:.4f}')
 
 		torch.save(self.config, self.config.config_file)
 		utils.show_history_graph(history)
 		print('finish training')
 		print('best uas:', best_uas)
-		print('best epoch', best_epoch)
+		print('best las:', best_las)
+		print('best epoch las', best_epoch)
 
 	def evaluate(self):
 		print('evaluating')

@@ -72,8 +72,6 @@ def read_data(filename, tokenizer, use_small_subset=False):
 				sentence_list.append(_get_useful_column_ud(sentence, tokenizer))
 				sentence = []
 				sentence_count += 1
-				if use_small_subset and sentence_count > 20:
-					break
 		else:
 			sentence.append(line.split('\t'))
 	if len(sentence) > 1:
@@ -116,7 +114,7 @@ class Sentence:
 
 def _get_useful_column_ud(sentence, tokenizer):
 	# word, ud pos, vn pos, head index, dependency label
-	# sentence = [[0, ROOT_TOKEN, 2, ROOT_TAG, ROOT_TAG, 5, 0, ROOT_LABEL, 8]] + sentence
+	sentence = [[0, ROOT_TOKEN, 2, ROOT_TAG, ROOT_TAG, 5, 0, ROOT_LABEL, 8]] + sentence
 	word_list = []
 	ud_pos_list = []
 	vn_pos_list = []
@@ -194,10 +192,12 @@ class Dataset:
 		self.heads = []
 		self.labels = []
 		self.lengths = []
+		self.origin_words = []
 		input_ids = []
 		last_index_position = []
 		self.config = config
 		for sentence in sentence_list:
+			self.origin_words.append(sentence.word)
 			self.lengths.append(sentence.length)
 			# self.words.append(sentence.word_embedding)
 			tag_list = sentence.vn_pos
@@ -252,27 +252,29 @@ class Dataset:
 		self.labels = [self.labels[i] for i in new_order]
 		self.lengths = [self.lengths[i] for i in new_order]
 
-	def batches(self, batch_size, shuffle=True, length_ordered=False):
+	def batches(self, batch_size, shuffle=True, length_ordered=False, origin_ordered=False):
 		"""An iterator over batches."""
 		n = len(self.words)
 		batch_order = list(range(0, n, batch_size))
-		if shuffle:
-			self.shuffle()
-			np.random.shuffle(batch_order)
-		if length_ordered:
-			self.order()
+		if not origin_ordered:
+			if shuffle:
+				self.shuffle()
+				np.random.shuffle(batch_order)
+			if length_ordered:
+				self.order()
 		for i in batch_order:
 			words = pad_word_embedding(self.words[i:i + batch_size], self.config)
 			tags = pad(self.tags[i:i + batch_size])
 			heads = pad(self.heads[i:i + batch_size])
 			labels = pad(self.labels[i:i + batch_size])
 			masks = pad_mask(self.labels[i:i + batch_size])
-			yield words, tags, heads, labels, masks
+			lengths = self.lengths[i:i + batch_size]
+			origin_words = self.origin_words[i:i + batch_size]
+			yield words, tags, heads, labels, masks, lengths, origin_words
 
 class Corpus:
 	def __init__(self, config, device):
 		phobert = AutoModel.from_pretrained("vinai/phobert-base")
-		# phobert.to(device)
 		tokenizer = AutoTokenizer.from_pretrained("vinai/phobert-base")
 
 		train_list = read_data(config.train_file, tokenizer, config.use_small_subset)
@@ -285,7 +287,7 @@ class Corpus:
 			self.vocab = Vocab(config, train_list + dev_list + test_list)
 		self.train = Dataset(config, train_list, self.vocab, phobert, device)
 		self.dev = Dataset(config, dev_list, self.vocab, phobert, device)
-		# self.test = Dataset(config, test_list, self.vocab, phobert)
+		self.test = Dataset(config, test_list, self.vocab, phobert, device)
 
 
 

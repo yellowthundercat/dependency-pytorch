@@ -4,6 +4,8 @@ from torch import nn
 from models.scorer import BiaffineScorer
 from models.encoder import RNNEncoder
 
+from utils.mst import mst
+
 class Parser(nn.Module):
 
 	def __init__(self, pos_vocab_length, n_label, config, word_emb_dim, pos_emb_dim, rnn_size, rnn_depth, mlp_size, update_pretrained=False):
@@ -26,7 +28,7 @@ class Parser(nn.Module):
 		p_dropout_mask = (torch.rand(size=postags.shape, device=words.device) > p_drop).long()
 		return words * w_dropout_mask, postags * p_dropout_mask
 
-	def forward(self, words, postags, heads, labels, masks, evaluate=False):
+	def forward(self, words, postags, heads, labels, masks):
 
 		if self.training:
 			# If we are training, apply the word/tag dropout to the word and tag tensors.
@@ -38,18 +40,14 @@ class Parser(nn.Module):
 		# We don't want to evaluate the loss or attachment score for the positions
 		# where we have a padding token. So we create a mask that will be zero for those
 		# positions and one elsewhere.
-		# pad_mask = (words != self.pad_id).float()
 		pad_mask = masks
 
+		return self.compute_loss(arc_score, lab_score, heads, labels, pad_mask)
+
+	def compute_loss(self, arc_score, lab_score, heads, labels, pad_mask):
 		arc_loss = self.arc_loss(arc_score, heads, pad_mask)
 		lab_loss = self.lab_loss(lab_score, heads, labels, pad_mask)
-		loss = arc_loss + lab_loss
-
-		if evaluate:
-			n_errors, n_tokens = self.evaluate(arc_score, heads, pad_mask)
-			return loss, n_errors, n_tokens
-		else:
-			return loss
+		return arc_loss + lab_loss
 
 	def arc_loss(self, arc_score, heads, pad_mask):
 		"""Compute the loss for the arc predictions."""
@@ -75,20 +73,32 @@ class Parser(nn.Module):
 		avg_loss = loss.dot(pad_mask) / pad_mask.sum()
 		return avg_loss
 
-	def evaluate(self, arc_score, heads, pad_mask):
-		arc_score = arc_score.transpose(-1, -2).contiguous()
-		n_sentences, n_words, _ = arc_score.shape
-		arc_score = arc_score.view(n_sentences * n_words, n_words)
-		heads = heads.view(n_sentences * n_words)
-		pad_mask = pad_mask.view(n_sentences * n_words)
-		n_tokens = pad_mask.sum()
-		predictions = arc_score.argmax(dim=1)
-		n_errors = (predictions != heads).float().dot(pad_mask)
-		return n_errors.item(), n_tokens.item()
+	def parse_from_score(self, arc_score, lab_score, lengths):
+		head_list = []
+		lab_list = []
+		for index, sentence_length in enumerate(lengths):
+			sent_arc_score = arc_score[index].data.numpy()[:sentence_length, :sentence_length]
+			heads = mst(sent_arc_score)
+			sent_lab_score = lab_score[index]
+			select = torch.LongTensor(heads).unsqueeze(0).expand(sent_lab_score.size(0), -1)
+			select = torch.autograd.Variable(select)
+			selected = torch.gather(sent_lab_score, 1, select.unsqueeze(1)).squeeze(1)
+			_, labels = selected.max(dim=0)
+			labels = labels.data.numpy()
+			head_list.append(heads)
+			lab_list.append(labels)
+		return head_list, lab_list
 
-	def predict(self, words, postags):
-		# This method is used to parse a sentence when the model has been trained.
+	def predict_batch(self, words, postags, lengths):
 		encoded = self.encoder(words, postags)
-		arc_score = self.scorer(encoded)
-		arc_score = arc_score.transpose(-1, -2).contiguous()
-		return arc_score.argmax(dim=2)
+		arc_score, lab_score = self.scorer(encoded)
+		return self.parse_from_score(arc_score, lab_score, lengths)
+
+	def predict_batch_with_loss(self, words, postags, heads, labels, pad_masks, lengths):
+		encoded = self.encoder(words, postags)
+		arc_score, lab_score = self.scorer(encoded)
+		loss = self.compute_loss(arc_score, lab_score, heads, labels, pad_masks)
+		head_list, lab_list = self.parse_from_score(arc_score, lab_score, lengths)
+		return loss, head_list, lab_list
+
+

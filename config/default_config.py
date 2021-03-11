@@ -10,13 +10,19 @@ class Config:
 		# file location
 		self.data_folder = 'data'
 		self.corpus_file = os.path.join(self.data_folder, 'corpus.pickle')
+		self.parsing_file = os.path.join(self.data_folder, 'parsing.txt')
 		self.save_folder = os.path.join(self.data_folder, self.model_name)
 		self.model_file = os.path.join(self.save_folder, 'model.pt')
 		self.config_file = os.path.join(self.save_folder, 'config.pickle')
 		self.vocab_file = os.path.join(self.save_folder, 'vocab.pickle')
-		self.train_file = os.path.join(self.data_folder, 'train.txt')
-		self.dev_file = os.path.join(self.data_folder, 'dev.txt')
-		self.test_file = os.path.join(self.data_folder, 'test.txt')
+		if self.use_small_subset:
+			self.train_file = os.path.join(self.data_folder, 'small_train.txt')
+			self.dev_file = os.path.join(self.data_folder, 'small_dev.txt')
+			self.test_file = os.path.join(self.data_folder, 'small_test.txt')
+		else:
+			self.train_file = os.path.join(self.data_folder, 'train.txt')
+			self.dev_file = os.path.join(self.data_folder, 'dev.txt')
+			self.test_file = os.path.join(self.data_folder, 'test.txt')
 		# for annotation
 		self.input_filename = 'input.txt'
 		self.output_filename = 'output.txt'
