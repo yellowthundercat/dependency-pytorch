@@ -100,18 +100,41 @@ class DependencyParser:
 			print(f'Epoch {epoch_index}: train loss = {train_loss:.4f}, val loss = {val_loss:.4f}, UAS = {uas:.4f}, LAS = {las:.4f}, time = {t1 - t0:.4f}')
 
 		torch.save(self.config, self.config.config_file)
-		utils.show_history_graph(history)
+		# utils.show_history_graph(history)
 		print('finish training')
 		print('best uas:', best_uas)
 		print('best las:', best_las)
 		print('best epoch las', best_epoch)
+		print('-'*20)
+		self.evaluate()
 
 	def evaluate(self):
 		print('evaluating')
-
+		self.model.eval()
+		test_batches = self.corpus.test.batches(self.config.batch_size, length_ordered=False, origin_ordered=True)
+		test_batch_length = 0
+		test_word_list = []
+		test_length_list = []
+		test_head_list = []
+		test_lab_list = []
+		with torch.no_grad():
+			for batch in test_batches:
+				test_batch_length += 1
+				words, tags, heads, labels, masks, lengths, origin_words = batch
+				head_list, lab_list = self.model.predict_batch(words, tags, lengths)
+				test_head_list += head_list
+				test_lab_list += lab_list
+				test_word_list += origin_words
+				test_length_list += lengths
+			utils.write_conll(self.corpus.vocab, test_word_list, test_head_list, test_lab_list, test_length_list,
+												self.config.parsing_file)
+			uas, las = utils.ud_scores(self.config.test_file, self.config.parsing_file)
+			print(f'Evaluating Result: UAS = {uas:.4f}, LAS = {las:.4}')
 
 	def annotate(self):
 		print('parsing')
+		input_file = open(self.config.annotate_file, encoding='utf-8')
+
 
 
 def main():

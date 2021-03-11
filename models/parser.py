@@ -74,6 +74,8 @@ class Parser(nn.Module):
 		return avg_loss
 
 	def parse_from_score(self, arc_score, lab_score, lengths):
+		arc_score = arc_score.cpu()
+		lab_score = lab_score.cpu()
 		head_list = []
 		lab_list = []
 		for index, sentence_length in enumerate(lengths):

@@ -15,6 +15,7 @@ class Config:
 		self.model_file = os.path.join(self.save_folder, 'model.pt')
 		self.config_file = os.path.join(self.save_folder, 'config.pickle')
 		self.vocab_file = os.path.join(self.save_folder, 'vocab.pickle')
+		self.annotate_file = os.path.join(self.save_folder, 'annotate.txt')
 		if self.use_small_subset:
 			self.train_file = os.path.join(self.data_folder, 'small_train.txt')
 			self.dev_file = os.path.join(self.data_folder, 'small_dev.txt')
@@ -41,7 +42,7 @@ class Config:
 		self.mlp_size = 256
 
 		# train
-		self.epoch = 30
+		self.epoch = 10
 		self.batch_size = 128
 		self.phobert_batch_size = 4
 
