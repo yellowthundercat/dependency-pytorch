@@ -6,6 +6,7 @@ class Config:
 		self.model_name = 'test_model'
 		self.mode = 'train'  # option: 'train', 'evaluate', 'annotate'
 		self.use_small_subset = True
+		self.use_pos = True
 
 		# file location
 		self.data_folder = 'data'
@@ -30,19 +31,22 @@ class Config:
 
 		# word level
 		self.use_vn_pos = True
-		self.word_emb_dim = 30
+		self.word_emb_dim = 100
 		self.phobert_dim = 768
 		self.pos_emb_dim = 30
 
 		#sentence level
 		self.length_ordered = False
-		self.drop_out_rate = 0.25
-		self.rnn_size = 256
+		self.word_dropout = 0.25
+		self.pos_dropout = 0.25
+		self.rnn_dropout = 0.1
+		self.mlp_dropout = 0.1
+		self.rnn_size = 256  # output encode = 2*rnn_size (biLSTM)
 		self.rnn_depth = 3
-		self.mlp_size = 256
+		self.mlp_size = 128
 
 		# train
-		self.epoch = 25
+		self.epoch = 15
 		self.batch_size = 64
 		self.phobert_batch_size = 4
 

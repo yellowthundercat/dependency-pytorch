@@ -16,23 +16,23 @@ class Parser(nn.Module):
 		self.encoder = RNNEncoder(config, word_emb_dim, pos_vocab_length, pos_emb_dim, rnn_size, rnn_depth, update_pretrained)
 
 		# Edge scoring module.
-		self.scorer = BiaffineScorer(2 * rnn_size, mlp_size, n_label)
+		self.scorer = BiaffineScorer(config, 2*rnn_size, mlp_size, n_label)
 
 		# Loss function that we will use during training.
 		self.loss = torch.nn.CrossEntropyLoss(reduction='none')
 
-	def word_tag_dropout(self, words, postags, p_drop):
-		# Randomly replace some of the positions in the word and postag tensors with a zero.
-		# This solution is a bit hacky because we assume that zero corresponds to the "unknown" token.
-		w_dropout_mask = (torch.rand(size=words.shape, device=words.device) > p_drop).long()
-		p_dropout_mask = (torch.rand(size=postags.shape, device=words.device) > p_drop).long()
-		return words * w_dropout_mask, postags * p_dropout_mask
+	# def word_tag_dropout(self, words, postags, p_drop):
+	# 	# Randomly replace some of the positions in the word and postag tensors with a zero.
+	# 	# This solution is a bit hacky because we assume that zero corresponds to the "unknown" token.
+	# 	w_dropout_mask = (torch.rand(size=words.shape, device=words.device) > p_drop).long()
+	# 	p_dropout_mask = (torch.rand(size=postags.shape, device=words.device) > p_drop).long()
+	# 	return words * w_dropout_mask, postags * p_dropout_mask
 
 	def forward(self, words, postags, heads, labels, masks):
 
-		if self.training:
-			# If we are training, apply the word/tag dropout to the word and tag tensors.
-			words, postags = self.word_tag_dropout(words, postags, self.config.drop_out_rate)
+		# if self.training:
+		# 	# If we are training, apply the word/tag dropout to the word and tag tensors.
+		# 	words, postags = self.word_tag_dropout(words, postags, self.config.drop_out_rate)
 
 		encoded = self.encoder(words, postags)
 		arc_score, lab_score = self.scorer(encoded)

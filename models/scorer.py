@@ -3,14 +3,25 @@ import torch
 
 class BiAffine(nn.Module):
 	"""BiAffine attention layer."""
-	def __init__(self, input_dim, output_dim):
+	def __init__(self, config, rnn_size, mlp_size, output_dim):
 		super(BiAffine, self).__init__()
-		self.input_dim = input_dim
+		mlp_activation = nn.ReLU()
+		self.head_mlp = nn.Sequential(nn.Linear(rnn_size, mlp_size), mlp_activation)
+		self.dep_mlp = nn.Sequential(nn.Linear(rnn_size, mlp_size), mlp_activation)
+		self.head_dropout = nn.Dropout(p=config.mlp_dropout)
+		self.dep_dropout = nn.Dropout(p=config.mlp_dropout)
+
+		self.input_dim = mlp_size
 		self.output_dim = output_dim
-		self.U = nn.Parameter(torch.FloatTensor(output_dim, input_dim+1, input_dim+1))
+		self.U = nn.Parameter(torch.FloatTensor(output_dim, mlp_size+1, mlp_size+1))
 		nn.init.xavier_uniform_(self.U)
 
-	def forward(self, R_head, R_dep):
+	def forward(self, sentence_repr):
+		R_head = self.head_mlp(sentence_repr)
+		R_dep = self.dep_mlp(sentence_repr)
+		if self.training:
+			R_head = self.head_dropout(R_head)
+			R_dep = self.dep_dropout(R_dep)
 		# add bias
 		R_head = torch.cat([R_head, R_head.new_ones(*R_head.size()[:-1], 1)], len(R_head.size()) - 1)
 		R_dep = torch.cat([R_dep, R_dep.new_ones(*R_dep.size()[:-1], 1)], len(R_dep.size()) - 1)
@@ -24,28 +35,14 @@ class BiAffine(nn.Module):
 
 class BiaffineScorer(nn.Module):
 
-	def __init__(self, rnn_size, mlp_size, n_label):
+	def __init__(self, config, rnn_size, mlp_size, n_label):
 		super().__init__()
 
-		mlp_activation = nn.ReLU()
-
-		# The two MLPs that we apply to the RNN output before the biaffine scorer.
-		self.arc_head_mlp = nn.Sequential(nn.Linear(rnn_size, mlp_size), mlp_activation)
-		self.arc_dep_mlp = nn.Sequential(nn.Linear(rnn_size, mlp_size), mlp_activation)
-		self.lab_head_mlp = nn.Sequential(nn.Linear(rnn_size, mlp_size), mlp_activation)
-		self.lab_dep_mlp = nn.Sequential(nn.Linear(rnn_size, mlp_size), mlp_activation)
-
 		# Weights for the biaffine part of the model.
-		self.arc_biaffine = BiAffine(mlp_size, 1)
-		self.lab_biaffine = BiAffine(mlp_size, n_label)
+		self.arc_biaffine = BiAffine(config, rnn_size, mlp_size, 1)
+		self.lab_biaffine = BiAffine(config, rnn_size, mlp_size, n_label)
 
 	def forward(self, sentence_repr):
-		# MLPs applied to the RNN output: equations 4 and 5 in the paper.
-		H_arc_head = self.arc_head_mlp(sentence_repr)
-		H_arc_dep = self.arc_dep_mlp(sentence_repr)
-		H_lab_head = self.lab_head_mlp(sentence_repr)
-		H_lab_dep = self.lab_dep_mlp(sentence_repr)
-
-		arc_score = self.arc_biaffine(H_arc_head, H_arc_dep)  # [batch, sent_lent, sent_lent] (need transpose)
-		lab_score = self.lab_biaffine(H_lab_head, H_lab_dep)  # [batch, n_label, sent_lent, sent_lent] (need transpose)
+		arc_score = self.arc_biaffine(sentence_repr)  # [batch, sent_lent, sent_lent] (need transpose)
+		lab_score = self.lab_biaffine(sentence_repr)  # [batch, n_label, sent_lent, sent_lent] (need transpose)
 		return arc_score, lab_score
