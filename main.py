@@ -11,7 +11,7 @@ from utils import utils
 from models.parser import Parser
 from models.deep_biaffine import DeepBiaffine
 from preprocess import dataset
-
+from utils.find_error_example import write_file_error_example
 
 class DependencyParser:
 	def __init__(self, config):
@@ -110,6 +110,8 @@ class DependencyParser:
 		self.evaluate()
 
 	def evaluate(self):
+		self.model = torch.load(self.config.model_file)
+		self.model.to(self.device)
 		print('evaluating')
 		self.model.eval()
 		test_batches = self.corpus.test.batches(self.config.batch_size, length_ordered=False, origin_ordered=True)
@@ -118,17 +120,23 @@ class DependencyParser:
 		test_length_list = []
 		test_head_list = []
 		test_lab_list = []
+		gold_head_list = []
+		gold_lab_list = []
 		with torch.no_grad():
 			for batch in test_batches:
 				test_batch_length += 1
 				words, tags, heads, labels, masks, lengths, origin_words = batch
 				head_list, lab_list = self.model.predict_batch(words, tags, lengths)
+				gold_head_list += [head.data.numpy()[:lent] for head, lent in zip(heads.cpu(), lengths)]
+				gold_lab_list += [lab.data.numpy()[:lent] for lab, lent in zip(labels.cpu(), lengths)]
 				test_head_list += head_list
 				test_lab_list += lab_list
 				test_word_list += origin_words
 				test_length_list += lengths
 			utils.write_conll(self.corpus.vocab, test_word_list, test_head_list, test_lab_list, test_length_list,
 												self.config.parsing_file)
+			write_file_error_example(self.config, self.corpus.vocab, test_word_list, test_head_list, gold_head_list, test_lab_list,
+															 gold_lab_list, test_length_list)
 			uas, las = utils.ud_scores(self.config.test_file, self.config.parsing_file)
 			print(f'Evaluating Result: UAS = {uas:.4f}, LAS = {las:.4}')
 

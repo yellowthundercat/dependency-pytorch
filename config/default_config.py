@@ -13,6 +13,7 @@ class Config:
 		self.corpus_file = os.path.join(self.data_folder, 'corpus.pickle')
 		self.parsing_file = os.path.join(self.data_folder, 'parsing.txt')
 		self.annotate_file = os.path.join(self.data_folder, 'annotate.txt')
+		self.error_sample_file = os.path.join(self.data_folder, 'error_sample.txt')
 		self.save_folder = os.path.join(self.data_folder, self.model_name)
 		self.model_file = os.path.join(self.save_folder, 'model.pt')
 		self.config_file = os.path.join(self.save_folder, 'config.pickle')
@@ -37,17 +38,17 @@ class Config:
 
 		#sentence level
 		self.length_ordered = False
-		self.word_dropout = 0.25
-		self.pos_dropout = 0.25
-		self.rnn_dropout = 0.1
-		self.mlp_dropout = 0.1
+		self.word_dropout = 0.33
+		self.pos_dropout = 0.33
+		self.rnn_dropout = 0.33
+		self.mlp_dropout = 0.33
 		self.rnn_size = 256  # output encode = 2*rnn_size (biLSTM)
 		self.rnn_depth = 3
 		self.mlp_size = 128
 
 		# train
-		self.epoch = 15
-		self.batch_size = 64
+		self.epoch = 25
+		self.batch_size = 32
 		self.phobert_batch_size = 4
 
 		# other

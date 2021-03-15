@@ -141,3 +141,5 @@ data/test_model/
 data/corpus.pickle
 
 data/parsing.txt
+
+data/error_sample.txt
