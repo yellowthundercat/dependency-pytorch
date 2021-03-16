@@ -229,8 +229,10 @@ class Dataset:
 				word_embedding = []
 				last_index_position_list = last_index_position[sentence_index]
 				for word_index in range(len(last_index_position_list) - 2):
-					word_emb = features[sentence_index-i][last_index_position_list[word_index]:last_index_position_list[word_index+1]]
-					word_embedding.append(torch.sum(word_emb, 0).numpy())
+					start_index = last_index_position_list[word_index]
+					end_index = last_index_position_list[word_index+1]
+					word_emb = features[sentence_index-i][start_index:end_index]
+					word_embedding.append(torch.sum(word_emb, 0).numpy() / (end_index-start_index))
 				self.words.append(word_embedding)
 
 	def order(self):
