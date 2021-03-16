@@ -8,7 +8,7 @@ from utils.mst import mst
 
 class Parser(nn.Module):
 
-	def __init__(self, pos_vocab_length, n_label, config, word_emb_dim, pos_emb_dim, rnn_size, rnn_depth, mlp_size, update_pretrained=False):
+	def __init__(self, pos_vocab_length, n_label, config, word_emb_dim, pos_emb_dim, rnn_size, rnn_depth, update_pretrained=False):
 		super().__init__()
 		self.config = config
 
@@ -16,7 +16,7 @@ class Parser(nn.Module):
 		self.encoder = RNNEncoder(config, word_emb_dim, pos_vocab_length, pos_emb_dim, rnn_size, rnn_depth, update_pretrained)
 
 		# Edge scoring module.
-		self.scorer = BiaffineScorer(config, 2*rnn_size, mlp_size, n_label)
+		self.scorer = BiaffineScorer(config, 2*rnn_size, n_label)
 
 		# Loss function that we will use during training.
 		self.loss = torch.nn.CrossEntropyLoss(reduction='none')

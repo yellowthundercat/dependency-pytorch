@@ -3,13 +3,13 @@ import torch
 
 class BiAffine(nn.Module):
 	"""BiAffine attention layer."""
-	def __init__(self, config, rnn_size, mlp_size, output_dim):
+	def __init__(self, config, rnn_size, mlp_size, output_dim, mlp_dropout):
 		super(BiAffine, self).__init__()
 		mlp_activation = nn.ReLU()
 		self.head_mlp = nn.Sequential(nn.Linear(rnn_size, mlp_size), mlp_activation)
 		self.dep_mlp = nn.Sequential(nn.Linear(rnn_size, mlp_size), mlp_activation)
-		self.head_dropout = nn.Dropout(p=config.mlp_dropout)
-		self.dep_dropout = nn.Dropout(p=config.mlp_dropout)
+		self.head_dropout = nn.Dropout(p=mlp_dropout)
+		self.dep_dropout = nn.Dropout(p=mlp_dropout)
 
 		self.input_dim = mlp_size
 		self.output_dim = output_dim
@@ -35,12 +35,12 @@ class BiAffine(nn.Module):
 
 class BiaffineScorer(nn.Module):
 
-	def __init__(self, config, rnn_size, mlp_size, n_label):
+	def __init__(self, config, rnn_size, n_label):
 		super().__init__()
 
 		# Weights for the biaffine part of the model.
-		self.arc_biaffine = BiAffine(config, rnn_size, mlp_size, 1)
-		self.lab_biaffine = BiAffine(config, rnn_size, mlp_size, n_label)
+		self.arc_biaffine = BiAffine(config, rnn_size, config.arc_mlp_size, 1, config.arc_mlp_dropout)
+		self.lab_biaffine = BiAffine(config, rnn_size, config.lab_mlp_size, n_label, config.lab_mlp_dropout)
 
 	def forward(self, sentence_repr):
 		arc_score = self.arc_biaffine(sentence_repr)  # [batch, sent_lent, sent_lent] (need transpose)

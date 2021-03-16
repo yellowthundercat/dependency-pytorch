@@ -32,7 +32,7 @@ class DependencyParser:
 			self.model = Parser(len(self.corpus.vocab.t2i), len(self.corpus.vocab.l2i), config,
 																			word_emb_dim=config.word_emb_dim, pos_emb_dim=config.pos_emb_dim,
 																			rnn_size=config.rnn_size, rnn_depth=config.rnn_depth,
-																			mlp_size=config.mlp_size, update_pretrained=False)
+																			update_pretrained=False)
 		self.model.to(self.device)
 
 	def train(self):

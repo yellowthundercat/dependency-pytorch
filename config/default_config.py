@@ -41,10 +41,12 @@ class Config:
 		self.word_dropout = 0.33
 		self.pos_dropout = 0.33
 		self.rnn_dropout = 0.33
-		self.mlp_dropout = 0.33
-		self.rnn_size = 256  # output encode = 2*rnn_size (biLSTM)
+		self.arc_mlp_dropout = 0.33
+		self.lab_mlp_dropout = 0.33
+		self.rnn_size = 200  # output encode = 2*rnn_size (biLSTM)
 		self.rnn_depth = 3
-		self.mlp_size = 128
+		self.arc_mlp_size = 400
+		self.lab_mlp_size = 100
 
 		# train
 		self.epoch = 25
