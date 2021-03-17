@@ -58,7 +58,28 @@ def pad_mask(batch):
 		padded_batch.append(padded)
 	return wrap(padded_batch, True)
 
-def read_data(filename, tokenizer, use_small_subset=False):
+def _get_useful_column_ud(sentence, tokenizer):
+	# word, ud pos, vn pos, head index, dependency label
+	sentence = [[0, ROOT_TOKEN, 2, ROOT_TAG, ROOT_TAG, 5, 0, ROOT_LABEL, 8]] + sentence
+	word_list = []
+	ud_pos_list = []
+	vn_pos_list = []
+	head_index_list = []
+	dependency_label_list = []
+	for word in sentence:
+		word_list.append(word[1])
+		ud_pos_list.append(word[3])
+		vn_pos_list.append(word[4])
+		head_index_list.append(int(word[6]))
+		dependency_label_list.append(word[7])
+	return Sentence(word_list, ud_pos_list, vn_pos_list, head_index_list, dependency_label_list, tokenizer)
+
+def unlabel_sentence(word_list, tokenizer):
+	word_list = [ROOT_TOKEN] + word_list
+	lent = len(word_list)
+	return Sentence(word_list, [0]*lent, [0]*lent, [0]*lent, [0]*lent, tokenizer)
+
+def read_data(filename, tokenizer):
 	sentence_count = 0
 	input_file = open(filename, encoding='utf-8')
 	sentence_list = []
@@ -80,6 +101,16 @@ def read_data(filename, tokenizer, use_small_subset=False):
 	utils.log('Number of sentence:', len(sentence_list))
 	return sentence_list
 
+def read_unlabel_data(folder_name, tokenizer):
+	sentence_list = []
+	for file_name in os.listdir(folder_name):
+		input_file = open(os.path.join(folder_name, file_name), encoding='utf-8')
+		for sentence in input_file:
+			words = sentence.split(' ')
+			if 2 < len(words) < 60:
+				sentence_list.append(unlabel_sentence(words, tokenizer))
+	utils.log('Number of unlabel sentence:', len(sentence_list))
+	return sentence_list
 
 def preprocess_word(word):
 	return re.sub(r'\d', '0', word.lower())
@@ -111,22 +142,6 @@ class Sentence:
 
 	def __str__(self):
 		return ' '.join(self.word)
-
-def _get_useful_column_ud(sentence, tokenizer):
-	# word, ud pos, vn pos, head index, dependency label
-	sentence = [[0, ROOT_TOKEN, 2, ROOT_TAG, ROOT_TAG, 5, 0, ROOT_LABEL, 8]] + sentence
-	word_list = []
-	ud_pos_list = []
-	vn_pos_list = []
-	head_index_list = []
-	dependency_label_list = []
-	for word in sentence:
-		word_list.append(word[1])
-		ud_pos_list.append(word[3])
-		vn_pos_list.append(word[4])
-		head_index_list.append(int(word[6]))
-		dependency_label_list.append(word[7])
-	return Sentence(word_list, ud_pos_list, vn_pos_list, head_index_list, dependency_label_list, tokenizer)
 
 def default_value():
 	return UNK_INDEX
@@ -246,7 +261,8 @@ class Dataset:
 					start_index = last_index_position_list[word_index]
 					end_index = last_index_position_list[word_index+1]
 					word_emb = features[sentence_index-i][start_index:end_index]
-					word_embedding.append(torch.sum(word_emb, 0).numpy() / (end_index-start_index))
+					# word_embedding.append(torch.sum(word_emb, 0).numpy() / (end_index-start_index))
+					word_embedding.append(torch.sum(word_emb, 0).numpy())
 				self.words.append(word_embedding)
 
 	def order(self):
@@ -295,22 +311,25 @@ class Dataset:
 			origin_words = self.origin_words[i:i + batch_size]
 			yield words, tags, heads, labels, masks, lengths, origin_words
 
+
 class Corpus:
 	def __init__(self, config, device):
 		phobert = AutoModel.from_pretrained("vinai/phobert-base")
 		tokenizer = AutoTokenizer.from_pretrained("vinai/phobert-base")
 
-		train_list = read_data(config.train_file, tokenizer, config.use_small_subset)
-		dev_list = read_data(config.dev_file, tokenizer, config.use_small_subset)
-		test_list = read_data(config.test_file, tokenizer, config.use_small_subset)
+		train_list = read_data(config.train_file, tokenizer)
+		dev_list = read_data(config.dev_file, tokenizer)
+		test_list = read_data(config.test_file, tokenizer)
+		unlabel_list = read_unlabel_data(config.unlabel_folder, tokenizer)
 
 		if os.path.exists(config.vocab_file):
 			self.vocab = torch.load(config.vocab_file)
 		else:
 			self.vocab = Vocab(config, train_list + dev_list + test_list)
 		self.train = Dataset(config, train_list, self.vocab, phobert, device)
-		self.dev = Dataset(config, dev_list, self.vocab, phobert, device, True)
-		self.test = Dataset(config, test_list, self.vocab, phobert, device, True)
+		self.dev = Dataset(config, dev_list, self.vocab, phobert, device)
+		self.test = Dataset(config, test_list, self.vocab, phobert, device)
+		self.unlabel = Dataset(config, unlabel_list, self.vocab, phobert, device)
 
 
 

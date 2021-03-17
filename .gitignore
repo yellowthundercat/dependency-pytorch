@@ -144,6 +144,6 @@ data/parsing.txt
 
 data/error_sample.txt
 
-data/unlabel_embedding/
+*.pickle
 
-data/corpus_cross_view.pickle
+data/unlabel_embedding/
