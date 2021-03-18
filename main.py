@@ -175,7 +175,8 @@ class DependencyParser:
 		self.evaluate()
 
 	def evaluate(self):
-		self.model = torch.load(self.config.model_file)
+		all_model = torch.load(self.config.model_file)
+		self.model = all_model['model']
 		self.model.to(self.device)
 		print('evaluating')
 		self.model.eval()

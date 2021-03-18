@@ -10,7 +10,7 @@ class Config:
 
 		# file location
 		self.data_folder = 'data'
-		self.corpus_file = os.path.join(self.data_folder, 'corpus_cross_view.pickle')
+		self.corpus_file = os.path.join(self.data_folder, 'corpus.pickle')
 		self.parsing_file = os.path.join(self.data_folder, 'parsing.txt')
 		self.annotate_file = os.path.join(self.data_folder, 'annotate.txt')
 		self.error_sample_file = os.path.join(self.data_folder, 'error_sample.txt')
