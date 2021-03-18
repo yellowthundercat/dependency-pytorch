@@ -349,8 +349,10 @@ class Unlabel_Corpus:
 			embedding_file = os.path.join(config.unlabel_embedding_folder, file_name)
 			input_file = os.path.join(config.unlabel_folder, file_name)
 			if os.path.exists(embedding_file):
+				print('loading', embedding_file)
 				self.dataset.concat(torch.load(embedding_file))
 			else:
+				print('creating', embedding_file)
 				unlabel_list = read_unlabel_data(input_file, tokenizer)
 				current_dataset = Dataset(config, unlabel_list, vocab, phobert, device)
 				torch.save(current_dataset, embedding_file)
