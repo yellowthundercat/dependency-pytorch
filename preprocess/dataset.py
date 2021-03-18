@@ -101,15 +101,13 @@ def read_data(filename, tokenizer):
 	utils.log('Number of sentence:', len(sentence_list))
 	return sentence_list
 
-def read_unlabel_data(folder_name, tokenizer):
+def read_unlabel_data(file_name, tokenizer):
 	sentence_list = []
-	for file_name in os.listdir(folder_name):
-		input_file = open(os.path.join(folder_name, file_name), encoding='utf-8')
-		for sentence in input_file:
-			words = sentence.split(' ')
-			if 2 < len(words) < 60:
-				sentence_list.append(unlabel_sentence(words, tokenizer))
-	utils.log('Number of unlabel sentence:', len(sentence_list))
+	input_file = open(file_name, encoding='utf-8')
+	for sentence in input_file:
+		words = sentence.split(' ')
+		if 2 < len(words) < 60:
+			sentence_list.append(unlabel_sentence(words, tokenizer))
 	return sentence_list
 
 def preprocess_word(word):
@@ -275,6 +273,7 @@ class Dataset:
 		self.heads = [self.heads[i] for i in new_order]
 		self.labels = [self.labels[i] for i in new_order]
 		self.lengths = [self.lengths[i] for i in new_order]
+		self.origin_words = [self.origin_words[i] for i in new_order]
 
 	def shuffle(self):
 		if self.orgin_ordered:
@@ -291,6 +290,7 @@ class Dataset:
 		self.heads = [self.heads[i] for i in new_order]
 		self.labels = [self.labels[i] for i in new_order]
 		self.lengths = [self.lengths[i] for i in new_order]
+		self.origin_words = [self.origin_words[i] for i in new_order]
 
 	def batches(self, batch_size, shuffle=True, length_ordered=False):
 		"""An iterator over batches."""
@@ -311,6 +311,14 @@ class Dataset:
 			origin_words = self.origin_words[i:i + batch_size]
 			yield words, tags, heads, labels, masks, lengths, origin_words
 
+	def concat(self, other):
+		self.words += other.words
+		self.tags += other.tags
+		self.heads += other.heads
+		self.labels += other.labels
+		self.lengths += other.lengths
+		self.origin_words += other.origin_words
+
 
 class Corpus:
 	def __init__(self, config, device):
@@ -320,7 +328,6 @@ class Corpus:
 		train_list = read_data(config.train_file, tokenizer)
 		dev_list = read_data(config.dev_file, tokenizer)
 		test_list = read_data(config.test_file, tokenizer)
-		unlabel_list = read_unlabel_data(config.unlabel_folder, tokenizer)
 
 		if os.path.exists(config.vocab_file):
 			self.vocab = torch.load(config.vocab_file)
@@ -329,7 +336,25 @@ class Corpus:
 		self.train = Dataset(config, train_list, self.vocab, phobert, device)
 		self.dev = Dataset(config, dev_list, self.vocab, phobert, device)
 		self.test = Dataset(config, test_list, self.vocab, phobert, device)
-		self.unlabel = Dataset(config, unlabel_list, self.vocab, phobert, device)
+
+class Unlabel_Corpus:
+	def __init__(self, config, device, vocab):
+		self.config = config
+		phobert = AutoModel.from_pretrained("vinai/phobert-base")
+		tokenizer = AutoTokenizer.from_pretrained("vinai/phobert-base")
+		self.dataset = Dataset(config, [], vocab, phobert, device)
+		for file_name in os.listdir(config.unlabel_folder):
+			embedding_file = os.path.join(config.unlabel_embedding_folder, file_name)
+			input_file = os.path.join(config.unlabel_folder, file_name)
+			if os.path.exists(embedding_file):
+				self.dataset.concat(torch.load(embedding_file))
+			else:
+				unlabel_list = read_unlabel_data(input_file, tokenizer)
+				current_dataset = Dataset(config, unlabel_list, vocab, phobert, device)
+				torch.save(current_dataset, embedding_file)
+				self.dataset.concat(current_dataset)
+		print('total length unlabel corpus:', len(self.dataset.lengths))
+
 
 
 

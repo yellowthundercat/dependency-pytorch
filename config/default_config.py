@@ -18,6 +18,7 @@ class Config:
 		self.model_file = os.path.join(self.save_folder, 'all_model.pt')
 		self.config_file = os.path.join(self.save_folder, 'config.pickle')
 		self.vocab_file = os.path.join(self.save_folder, 'vocab.pickle')
+		self.unlabel_embedding_folder = os.path.join(self.data_folder, 'unlabel_embedding')
 		if self.use_small_subset:
 			self.train_file = os.path.join(self.data_folder, 'small_train.txt')
 			self.dev_file = os.path.join(self.data_folder, 'small_dev.txt')

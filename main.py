@@ -25,6 +25,7 @@ class DependencyParser:
 			print('preprocess corpus')
 			self.corpus = dataset.Corpus(config, self.device)
 			torch.save(self.corpus, config.corpus_file)
+		self.unlabel_corpus = dataset.Unlabel_Corpus(config, self.device, self.corpus.vocab)
 		if os.path.exists(config.model_file):
 			print('We will continue training')
 			all_model = torch.load(config.model_file)
@@ -129,18 +130,18 @@ class DependencyParser:
 			# get new predict head, label
 			predict_heads = []
 			predict_labels = []
-			unlabel_batches = self.corpus.unlabel.batches(self.config.batch_size, length_ordered=False, origin_ordered=True)
+			unlabel_batches = self.unlabel_corpus.dataset.batches(self.config.batch_size, length_ordered=False, origin_ordered=True)
 			for batch in unlabel_batches:
 				words, tags, heads, labels, masks, lengths, origin_words = batch
 				head_list, lab_list = self.model.predict_batch(words, tags, lengths)
 				predict_heads += [heads.tolist() for heads in head_list]
 				predict_labels += [lab.tolist() for lab in lab_list]
-			self.corpus.unlabel.heads = predict_heads
-			self.corpus.unlabel.labels = predict_labels
+			self.unlabel_corpus.dataset.heads = predict_heads
+			self.unlabel_corpus.dataset.labels = predict_labels
 
 			for student_model, studet_optimizer in zip(self.model_students, self.optimizer_students):
 				student_model.train()
-				unlabel_batches = self.corpus.unlabel.batches(self.config.batch_size, length_ordered=self.config.length_ordered)
+				unlabel_batches = self.unlabel_corpus.dataset.batches(self.config.batch_size, length_ordered=self.config.length_ordered)
 				for batch in unlabel_batches:
 					words, tags, heads, labels, masks, lengths, origin_words = batch
 					loss = self.model(words, tags, heads, labels, masks)
@@ -215,10 +216,14 @@ def main():
 	# load config
 	config = Config()
 	utils.ensure_dir(config.save_folder)
+	utils.ensure_dir(config.unlabel_embedding_folder)
 	if os.path.exists(config.config_file):
 		config = torch.load(config.config_file)
 
+	t0 = time.time()
 	parser = DependencyParser(config)
+	t1 = time.time()
+	print(f'init time = {t1 - t0:.4f}')
 
 	if config.mode == 'train':
 		parser.train()
