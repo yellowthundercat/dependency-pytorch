@@ -342,8 +342,7 @@ class Corpus:
 class Unlabel_Corpus:
 	def __init__(self, config, device, vocab):
 		self.config = config
-		phobert = AutoModel.from_pretrained("vinai/phobert-base")
-		tokenizer = AutoTokenizer.from_pretrained("vinai/phobert-base")
+		phobert = tokenizer = 0
 		self.dataset = Dataset(config, [], vocab, phobert, device)
 		for file_name in os.listdir(config.unlabel_folder):
 			embedding_file = os.path.join(config.unlabel_embedding_folder, file_name)
@@ -352,6 +351,9 @@ class Unlabel_Corpus:
 				print('loading', embedding_file)
 				self.dataset.concat(torch.load(embedding_file))
 			else:
+				if phobert is None:
+					phobert = AutoModel.from_pretrained("vinai/phobert-base")
+					tokenizer = AutoTokenizer.from_pretrained("vinai/phobert-base")
 				print('creating', embedding_file)
 				unlabel_list = read_unlabel_data(input_file, tokenizer)
 				current_dataset = Dataset(config, unlabel_list, vocab, phobert, device)
