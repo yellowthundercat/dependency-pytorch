@@ -64,7 +64,7 @@ class DependencyParser:
 			history['train_loss'].append(train_loss)
 
 			self.model.eval()
-			dev_batches = self.corpus.dev.batches(self.config.batch_size, length_ordered=False, origin_ordered=True)
+			dev_batches = self.corpus.dev.batches(self.config.batch_size, length_ordered=False)
 			dev_batch_length = 0
 			dev_word_list = []
 			dev_length_list = []
@@ -114,7 +114,7 @@ class DependencyParser:
 		self.model.to(self.device)
 		print('evaluating')
 		self.model.eval()
-		test_batches = self.corpus.test.batches(self.config.batch_size, length_ordered=False, origin_ordered=True)
+		test_batches = self.corpus.test.batches(self.config.batch_size, length_ordered=False)
 		test_batch_length = 0
 		test_word_list = []
 		test_length_list = []

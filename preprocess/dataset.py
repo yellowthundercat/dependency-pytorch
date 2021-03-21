@@ -186,7 +186,8 @@ class Vocab:
 
 
 class Dataset:
-	def __init__(self, config, sentence_list, vocab, phobert, device):
+	def __init__(self, config, sentence_list, vocab, phobert, device, origin_ordered=False):
+		self.orgin_ordered = origin_ordered
 		self.words = []
 		self.tags = []
 		self.heads = []
@@ -195,6 +196,7 @@ class Dataset:
 		self.origin_words = []
 		input_ids = []
 		last_index_position = []
+		self.bucket = []
 		self.config = config
 		for sentence in sentence_list:
 			self.origin_words.append(sentence.word)
@@ -209,6 +211,18 @@ class Dataset:
 			input_ids.append(sentence.input_ids)
 			last_index_position.append(sentence.last_index_position)
 		self.process_embedding(phobert, input_ids, last_index_position, device)
+		self.init_bucket()
+
+	def init_bucket(self):
+		self.order()
+		# shuffle into 3 bucket <20, <40 and others
+		pivot_20 = pivot_40 = 0
+		for index, lent in enumerate(self.lengths):
+			if lent <= 20:
+				pivot_20 = index
+			if lent <= 40:
+				pivot_40 = index
+		self.bucket = [(0, pivot_20), (pivot_20, pivot_40), (pivot_40, len(self.lengths))]
 
 	def process_embedding(self, phobert, input_ids, last_index_position, device):
 		last_print = 0
@@ -236,6 +250,8 @@ class Dataset:
 				self.words.append(word_embedding)
 
 	def order(self):
+		if self.orgin_ordered:
+			return
 		old_order = zip(range(len(self.lengths)), self.lengths)
 		new_order, _ = zip(*sorted(old_order, key=lambda t: t[1]))
 		self.words = [self.words[i] for i in new_order]
@@ -245,25 +261,30 @@ class Dataset:
 		self.lengths = [self.lengths[i] for i in new_order]
 
 	def shuffle(self):
-		n = len(self.words)
-		new_order = list(range(0, n))
-		np.random.shuffle(new_order)
+		if self.orgin_ordered:
+			return
+		self.order()
+		new_order = []
+		for start_index, end_index in self.bucket:
+			temp_order = list(range(start_index, end_index))
+			np.random.shuffle(temp_order)
+			new_order.append(temp_order)
+		new_order = [position for order_list in new_order for position in order_list]
 		self.words = [self.words[i] for i in new_order]
 		self.tags = [self.tags[i] for i in new_order]
 		self.heads = [self.heads[i] for i in new_order]
 		self.labels = [self.labels[i] for i in new_order]
 		self.lengths = [self.lengths[i] for i in new_order]
 
-	def batches(self, batch_size, shuffle=True, length_ordered=False, origin_ordered=False):
+	def batches(self, batch_size, shuffle=True, length_ordered=False):
 		"""An iterator over batches."""
 		n = len(self.words)
 		batch_order = list(range(0, n, batch_size))
-		if not origin_ordered:
-			if shuffle:
-				self.shuffle()
-				np.random.shuffle(batch_order)
-			if length_ordered:
-				self.order()
+		if shuffle:
+			self.shuffle()
+			np.random.shuffle(batch_order)
+		if length_ordered:
+			self.order()
 		for i in batch_order:
 			words = pad_word_embedding(self.words[i:i + batch_size], self.config)
 			tags = pad(self.tags[i:i + batch_size])
@@ -288,8 +309,8 @@ class Corpus:
 		else:
 			self.vocab = Vocab(config, train_list + dev_list + test_list)
 		self.train = Dataset(config, train_list, self.vocab, phobert, device)
-		self.dev = Dataset(config, dev_list, self.vocab, phobert, device)
-		self.test = Dataset(config, test_list, self.vocab, phobert, device)
+		self.dev = Dataset(config, dev_list, self.vocab, phobert, device, True)
+		self.test = Dataset(config, test_list, self.vocab, phobert, device, True)
 
 
 

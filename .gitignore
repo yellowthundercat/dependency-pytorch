@@ -143,3 +143,7 @@ data/corpus.pickle
 data/parsing.txt
 
 data/error_sample.txt
+
+data/unlabel_embedding/
+
+data/corpus_cross_view.pickle

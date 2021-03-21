@@ -5,7 +5,7 @@ class Config:
 		# general
 		self.model_name = 'test_model'
 		self.mode = 'train'  # option: 'train', 'evaluate', 'annotate'
-		self.use_small_subset = False
+		self.use_small_subset = True
 		self.use_pos = True
 
 		# file location
