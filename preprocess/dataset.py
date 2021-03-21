@@ -265,7 +265,7 @@ class Dataset:
 				self.words.append(word_embedding)
 
 	def order(self):
-		if self.orgin_ordered:
+		if self.orgin_ordered or len(self.lengths) < 2:
 			return
 		old_order = zip(range(len(self.lengths)), self.lengths)
 		new_order, _ = zip(*sorted(old_order, key=lambda t: t[1]))
@@ -335,19 +335,19 @@ class Corpus:
 			self.vocab = torch.load(config.vocab_file)
 		else:
 			self.vocab = Vocab(config, train_list + dev_list + test_list)
-		self.train = Dataset(config, train_list, self.vocab, phobert, device)
-		self.dev = Dataset(config, dev_list, self.vocab, phobert, device)
-		self.test = Dataset(config, test_list, self.vocab, phobert, device)
+		self.train = Dataset(config, train_list, self.vocab, phobert, device, False)
+		self.dev = Dataset(config, dev_list, self.vocab, phobert, device, True)
+		self.test = Dataset(config, test_list, self.vocab, phobert, device, True)
 
 class Unlabel_Corpus:
 	def __init__(self, config, device, vocab):
 		self.config = config
-		phobert = tokenizer = 0
+		phobert = tokenizer = None
 		self.dataset = Dataset(config, [], vocab, phobert, device)
 		for file_name in os.listdir(config.unlabel_folder):
 			embedding_file = os.path.join(config.unlabel_embedding_folder, file_name)
 			input_file = os.path.join(config.unlabel_folder, file_name)
-			if os.path.exists(embedding_file):
+			if os.path.exists(embedding_file) and config.use_proccessed_embedding:
 				print('loading', embedding_file)
 				self.dataset.concat(torch.load(embedding_file))
 			else:
@@ -356,9 +356,10 @@ class Unlabel_Corpus:
 					tokenizer = AutoTokenizer.from_pretrained("vinai/phobert-base")
 				print('creating', embedding_file)
 				unlabel_list = read_unlabel_data(input_file, tokenizer)
-				current_dataset = Dataset(config, unlabel_list, vocab, phobert, device)
+				current_dataset = Dataset(config, unlabel_list, vocab, phobert, device, False)
 				torch.save(current_dataset, embedding_file)
 				self.dataset.concat(current_dataset)
+		self.dataset.init_bucket()
 		print('total length unlabel corpus:', len(self.dataset.lengths))
 
 

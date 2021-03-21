@@ -18,7 +18,7 @@ class RNNEncoder(nn.Module):
 
 		# dropout
 		self.input_word_dropout = nn.Dropout(p=config.input_dropout)
-		self.input_pos_dropout = nn.Dropout(p=config.input_dropout)
+		self.pos_dropout = nn.Dropout(p=config.input_dropout)
 		self.word_dropout = nn.Dropout(p=config.word_dropout)
 		self.rnn1_dropout = nn.Dropout(p=config.rnn_dropout)
 		self.rnn2_dropout = nn.Dropout(p=config.rnn_dropout)
@@ -29,7 +29,8 @@ class RNNEncoder(nn.Module):
 
 		self.rnn_size = config.rnn_size
 		self.rnn1 = nn.LSTM(input_size=rnn_input_dim, hidden_size=config.rnn_size, batch_first=True, bidirectional=True)
-		self.rnn2 = nn.LSTM(input_size=2*config.rnn_size, hidden_size=config.rnn_size, batch_first=True, bidirectional=True)
+		self.rnn2 = nn.LSTM(input_size=2*config.rnn_size, hidden_size=config.rnn_size, batch_first=True, bidirectional=True,
+												dropout=config.rnn_dropout, num_layers=config.rnn_depth-1)
 
 	def forward(self, words, postags):
 		if self.training:

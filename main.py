@@ -1,82 +1,150 @@
 from collections import defaultdict, Counter
 import os
 import time
-import numpy as np
-import random
 import torch
-import torchtext
-from models.encoder import RNNEncoder
 
 from config.default_config import Config
 from utils import utils
-from models.parser import Parser
-from models.deep_biaffine import DeepBiaffine
 from preprocess import dataset
 from utils.find_error_example import write_file_error_example
+from utils import utils_train
 
 class DependencyParser:
 	def __init__(self, config):
 		self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 		self.config = config
-		if os.path.exists(config.corpus_file):
+
+		# word embedding
+		if os.path.exists(config.corpus_file) and config.use_proccessed_embedding:
 			print('load preprocessed corpus')
 			self.corpus = torch.load(config.corpus_file)
 		else:
 			print('preprocess corpus')
 			self.corpus = dataset.Corpus(config, self.device)
 			torch.save(self.corpus, config.corpus_file)
-		self.unlabel_corpus = dataset.Unlabel_Corpus(config, self.device, self.corpus.vocab)
+		if config.cross_view:
+			print('prepare unlabel data')
+			self.unlabel_corpus = dataset.Unlabel_Corpus(config, self.device, self.corpus.vocab)
+
+		# model
 		if os.path.exists(config.model_file):
 			print('We will continue training')
 			all_model = torch.load(config.model_file)
-			self.encoder = all_model['encoder']
-			self.model = all_model['model']
-			self.model.encoder = self.encoder
-			self.model_students = all_model['model_students']
-			for student_model in self.model_students:
-				student_model.encoder = self.encoder
-			self.optimizer = all_model['optimizer']
-			self.optimizer_students = all_model['optimizer_students']
-			self.saving_epoch = all_model['epoch']
-			self.best_uas = all_model['uas']
-			self.best_las = all_model['las']
+			utils_train.load_model(self, all_model, config)
 		else:
 			print('We will train model from scratch')
-			self.encoder = RNNEncoder(config, len(self.corpus.vocab.t2i))
-			self.model = Parser(self.encoder, len(self.corpus.vocab.l2i), config, 'uni_bi', 'uni_bi')
-			self.model_students = [
-				Parser(self.encoder, len(self.corpus.vocab.l2i), config, 'uni_bi', 'uni_bi'),
-				Parser(self.encoder, len(self.corpus.vocab.l2i), config, 'uni_fw', 'uni_fw'),
-				Parser(self.encoder, len(self.corpus.vocab.l2i), config, 'uni_fw', 'uni_bw'),
-				Parser(self.encoder, len(self.corpus.vocab.l2i), config, 'uni_bw', 'uni_fw'),
-				Parser(self.encoder, len(self.corpus.vocab.l2i), config, 'uni_bw', 'uni_bw')
-			]
-			self.optimizer = torch.optim.Adam(self.model.parameters(), betas=(0.9, 0.9), lr=0.005, weight_decay=1e-5)
-			self.optimizer_students = [torch.optim.Adam(model_student.parameters(), betas=(0.9, 0.9), lr=0.005, weight_decay=1e-5)
-																for model_student in self.model_students]
-			self.saving_epoch = 0
-			self.best_las = self.best_uas = 0
+			utils_train.init_model(self, config)
 		self.model.to(self.device)
-		for model_student in self.model_students:
-			model_student.to(self.device)
+		if config.cross_view:
+			for model_student in self.model_students:
+				model_student.to(self.device)
 
-	def save_all_model(self):
-		all_model = {
-			'encoder': self.encoder,
-			'model': self.model,
-			'model_students': self.model_students,
-			'optimizer': self.optimizer,
-			'optimizer_students': self.optimizer_students,
-			'epoch': self.saving_epoch,
-			'uas': self.best_uas,
-			'las': self.best_las
-		}
-		torch.save(all_model, self.config.model_file)
+	def train_student(self, unlabel_batch):
+		# use teacher to predict
+		self.model.eval()
+		words, tags, heads, labels, masks, lengths, origin_words = unlabel_batch
+		head_list, lab_list = self.model.predict_batch(words, tags, lengths)
+		heads = dataset.pad([head.tolist() for head in head_list])
+		labels = dataset.pad([lab.tolist() for lab in lab_list])
+
+		# train student
+		total_loss = 0
+		for student_model, student_optimizer, student_scheduler in zip(self.model_students, self.optimizer_students, self.scheduler_students):
+			student_model.train()
+			loss = self.model(words, tags, heads, labels, masks)
+			student_optimizer.zero_grad()
+			loss.backward()
+			student_optimizer.step()
+			student_scheduler.step()
+			total_loss += loss.item()
+		return total_loss
+
+	def train_teacher(self, train_batch):
+		self.model.train()
+		words, tags, heads, labels, masks, lengths, origin_words = train_batch
+		loss = self.model(words, tags, heads, labels, masks)
+		self.optimizer.zero_grad()
+		loss.backward()
+		self.optimizer.step()
+		if self.config.cross_view:
+			self.scheduler.step()
+		return loss.item()
+
+	def train(self):
+		print('start training')
+
+		history = defaultdict(list)
+		total_teacher_loss = total_student_loss = 0
+		count_teacher = count_student = 0
+		train_batches = self.corpus.train.batches(self.config.batch_size, length_ordered=self.config.length_ordered)
+		if self.config.cross_view:
+			unlabel_batches = self.unlabel_corpus.dataset.batches(self.config.batch_size, length_ordered=self.config.length_ordered)
+		# odd for teacher, even for student
+		t0 = time.time()
+		for global_step in range(self.saving_step+1, self.config.max_step):
+			# train
+			if global_step % 2 == 1 or self.config.cross_view is False:
+				#train teacher
+				try:
+					train_batch = next(train_batches)
+				except StopIteration:
+					train_batches = self.corpus.train.batches(self.config.batch_size, length_ordered=self.config.length_ordered)
+					train_batch = next(train_batches)
+				total_teacher_loss += self.train_teacher(train_batch)
+				count_teacher += 1
+			else:
+				# train student
+				try:
+					unlabel_batch = next(unlabel_batches)
+				except StopIteration:
+					unlabel_batches = self.unlabel_corpus.dataset.batches(self.config.batch_size, length_ordered=self.config.length_ordered)
+					unlabel_batch = next(unlabel_batches)
+				total_student_loss += self.train_student(unlabel_batch)
+				count_student += 5
+
+			# print result
+			if global_step % self.config.print_step == 0:
+				t1 = time.time()
+				teacher_loss = total_teacher_loss/max(1, count_teacher)
+				student_loss = total_student_loss/max(1, count_student)
+				if self.config.cross_view:
+					print(f'Step {global_step}: teacher loss = {teacher_loss:.4f}, student loss = {student_loss:.4f}, time = {t1 - t0:.4f}')
+				else:
+					print(
+						f'Step {global_step}: train loss = {teacher_loss:.4f}, time = {t1 - t0:.4f}')
+				t0 = time.time()
+				total_teacher_loss = total_student_loss = 0
+				count_teacher = count_student = 0
+
+			# eval dev
+			if global_step % self.config.eval_dev_every == 0:
+				print('-' * 20)
+				val_loss, uas, las = self.check_dev()
+				history['val_loss'].append(val_loss)
+				history['uas'].append(uas)
+				history['las'].append(las)
+				print(f'EVAL DEV: val loss = {val_loss:.4f}, UAS = {uas:.4f}, LAS = {las:.4f}')
+				if las + uas > self.best_las + self.best_uas:
+					print('save new best model')
+					self.best_las = las
+					self.best_uas = uas
+					self.saving_step = global_step
+					utils_train.save_model(self, self.config)
+				print('-' * 20)
+
+		# torch.save(self.config, self.config.config_file)
+		# utils.show_history_graph(history)
+		print('finish training')
+		print('best uas:', self.best_uas)
+		print('best las:', self.best_las)
+		print('best step', self.saving_step)
+		print('-'*20)
+		self.evaluate()
 
 	def check_dev(self):
 		stats = Counter()
 		self.model.eval()
-		dev_batches = self.corpus.dev.batches(self.config.batch_size, length_ordered=False, origin_ordered=True)
+		dev_batches = self.corpus.dev.batches(self.config.batch_size, shuffle=False, length_ordered=False)
 		dev_batch_length = 0
 		dev_word_list = []
 		dev_length_list = []
@@ -99,88 +167,13 @@ class DependencyParser:
 		uas, las = utils.ud_scores(self.config.dev_file, self.config.parsing_file)
 		return val_loss, uas, las
 
-
-	def train(self):
-		print('start training')
-
-		history = defaultdict(list)
-
-		for epoch_index in range(self.saving_epoch+1, self.config.epoch + 1):
-			t0 = time.time()
-			stats = Counter()
-
-			# train teacher model
-			train_batches = self.corpus.train.batches(self.config.batch_size, length_ordered=self.config.length_ordered)
-			train_batch_length = 0
-			self.model.train()
-			for batch in train_batches:
-				train_batch_length += 1
-				words, tags, heads, labels, masks, lengths, origin_words = batch
-				loss = self.model(words, tags, heads, labels, masks)
-				self.optimizer.zero_grad()
-				loss.backward()
-				self.optimizer.step()
-				stats['train_loss'] += loss.item()
-
-			train_loss = stats['train_loss'] / train_batch_length
-			history['train_loss'].append(train_loss)
-
-			# train students model
-			self.model.eval()
-			# get new predict head, label
-			predict_heads = []
-			predict_labels = []
-			unlabel_batches = self.unlabel_corpus.dataset.batches(self.config.batch_size, length_ordered=False, origin_ordered=True)
-			for batch in unlabel_batches:
-				words, tags, heads, labels, masks, lengths, origin_words = batch
-				head_list, lab_list = self.model.predict_batch(words, tags, lengths)
-				predict_heads += [heads.tolist() for heads in head_list]
-				predict_labels += [lab.tolist() for lab in lab_list]
-			self.unlabel_corpus.dataset.heads = predict_heads
-			self.unlabel_corpus.dataset.labels = predict_labels
-
-			for student_model, studet_optimizer in zip(self.model_students, self.optimizer_students):
-				student_model.train()
-				unlabel_batches = self.unlabel_corpus.dataset.batches(self.config.batch_size, length_ordered=self.config.length_ordered)
-				for batch in unlabel_batches:
-					words, tags, heads, labels, masks, lengths, origin_words = batch
-					loss = self.model(words, tags, heads, labels, masks)
-					studet_optimizer.zero_grad()
-					loss.backward()
-					studet_optimizer.step()
-
-			# check dev
-			val_loss, uas, las = self.check_dev()
-			history['val_loss'].append(val_loss)
-			history['uas'].append(uas)
-			history['las'].append(las)
-
-			if las + uas > self.best_las + self.best_uas:
-				print('save new best model')
-				self.best_las = las
-				self.best_uas = uas
-				self.saving_epoch = epoch_index
-				self.save_all_model()
-
-			t1 = time.time()
-			print(f'Epoch {epoch_index}: train loss = {train_loss:.4f}, val loss = {val_loss:.4f}, UAS = {uas:.4f}, LAS = {las:.4f}, time = {t1 - t0:.4f}')
-
-		# torch.save(self.config, self.config.config_file)
-		# utils.show_history_graph(history)
-		print('finish training')
-		print('best uas:', self.best_uas)
-		print('best las:', self.best_las)
-		print('best epoch', self.saving_epoch)
-		print('-'*20)
-		self.evaluate()
-
 	def evaluate(self):
 		all_model = torch.load(self.config.model_file)
 		self.model = all_model['model']
 		self.model.to(self.device)
 		print('evaluating')
 		self.model.eval()
-		test_batches = self.corpus.test.batches(self.config.batch_size, length_ordered=False)
+		test_batches = self.corpus.test.batches(self.config.batch_size, shuffle=False, length_ordered=False)
 		test_batch_length = 0
 		test_word_list = []
 		test_length_list = []
@@ -210,6 +203,7 @@ class DependencyParser:
 		print('parsing')
 		input_file = open(self.config.annotate_file, encoding='utf-8')
 		sentence = input_file.read()
+		# waiting pos
 
 
 

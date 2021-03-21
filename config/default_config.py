@@ -5,8 +5,10 @@ class Config:
 		# general
 		self.model_name = 'test_model_cross_view'
 		self.mode = 'train'  # option: 'train', 'evaluate', 'annotate'
-		self.use_small_subset = False
-		self.use_pos = False
+		self.use_small_subset = True
+		self.use_pos = True
+		self.cross_view = True
+		self.use_proccessed_embedding = True
 
 		# file location
 		self.data_folder = 'data'
@@ -53,9 +55,26 @@ class Config:
 		self.lab_mlp_size = 100
 
 		# train
-		self.epoch = 25
+		self.max_step = 10000
 		self.batch_size = 32
 		self.phobert_batch_size = 4
+		self.print_step = 50
+		self.eval_dev_every = 500  # how often to evaluate on the dev set
+		if self.use_small_subset:
+			self.print_step = 2
+			self.eval_dev_every = 10
+			self.max_step = 100
+
+		# optimizer
+		# momentum for cross-view training
+		self.use_momentum = True
+		self.lr_momentum = 0.5  # base learning rate
+		self.momentum = 0.9  # momentum
+		self.grad_clip = 1.0  # maximum gradient norm during optimization
+		self.warm_up_steps = 5000.0  # linearly ramp up the lr for this many steps
+		self.lr_decay = 0.005  # factor for gradually decaying the lr
+
+		# adam for normal
 
 		# other
 		self.seed = 2712021
