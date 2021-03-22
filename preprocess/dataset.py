@@ -251,7 +251,7 @@ class Dataset:
 			# padded_input_ids.to(device)
 			with torch.no_grad():
 				origin_features = phobert(padded_input_ids)
-				features = origin_features[0]
+				features = origin_features[2][self.config.phobert_layer]
 			for sentence_index in range(i, min(n, i+batch_size)):
 				# get embedding of each word
 				word_embedding = []
@@ -324,7 +324,8 @@ class Dataset:
 class Corpus:
 	def __init__(self, config, device):
 		# phobert = AutoModel.from_pretrained("vinai/phobert-base", output_attentions=True, output_hidden_states=True)
-		phobert = AutoModel.from_pretrained("vinai/phobert-base")
+		# phobert = AutoModel.from_pretrained("vinai/phobert-base")
+		phobert = AutoModel.from_pretrained("vinai/phobert-base", output_hidden_states=True)
 		tokenizer = AutoTokenizer.from_pretrained("vinai/phobert-base")
 
 		train_list = read_data(config.train_file, tokenizer)
@@ -345,6 +346,8 @@ class Unlabel_Corpus:
 		phobert = tokenizer = None
 		self.dataset = Dataset(config, [], vocab, phobert, device)
 		for file_name in os.listdir(config.unlabel_folder):
+			if file_name.endswith('.txt') is False:
+				continue
 			embedding_file = os.path.join(config.unlabel_embedding_folder, file_name)
 			input_file = os.path.join(config.unlabel_folder, file_name)
 			if os.path.exists(embedding_file) and config.use_proccessed_embedding:

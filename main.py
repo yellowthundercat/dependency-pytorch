@@ -22,7 +22,7 @@ class DependencyParser:
 			print('preprocess corpus')
 			self.corpus = dataset.Corpus(config, self.device)
 			torch.save(self.corpus, config.corpus_file)
-		if config.cross_view:
+		if config.cross_view and config.mode == 'train':
 			print('prepare unlabel data')
 			self.unlabel_corpus = dataset.Unlabel_Corpus(config, self.device, self.corpus.vocab)
 
