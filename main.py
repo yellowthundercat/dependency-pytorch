@@ -66,8 +66,8 @@ class DependencyParser:
 		self.optimizer.zero_grad()
 		loss.backward()
 		self.optimizer.step()
-		if self.config.cross_view:
-			self.scheduler.step()
+		# if self.config.cross_view:
+		self.scheduler.step()
 		return loss.item()
 
 	def train(self):
