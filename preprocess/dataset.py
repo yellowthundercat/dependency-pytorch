@@ -46,7 +46,7 @@ def pad_phobert(batch, pad_word=1):
 	return torch.tensor(padded_batch)
 
 def pad_word_embedding(batch, config):
-	pad_word = config.phobert_dim*[PAD_INDEX]
+	pad_word = (config.phobert_dim+config.attention_emb_dim) * [PAD_INDEX]
 	return pad(batch, pad_word, True)
 
 def pad_mask(batch):
@@ -254,7 +254,8 @@ class Dataset:
 				# hidden layer format: [layer: 13(+1 output)][batch][ids][768]
 				features = origin_features[2][self.config.phobert_layer]
 				# attention format: [layer: 12][batch][head: 12][ids][ids]
-				attention_heads = utils.get_attention_heads(origin_features[3], self.config.attention_requires, self.config.attention_head_tops)
+				# => [batch][words][attention_emb_dim]
+				attention_features = utils.get_attention_heads(origin_features[3], self.config, last_index_position[i: i+batch_size])
 			for sentence_index in range(i, min(n, i+batch_size)):
 				# get embedding of each word
 				word_embedding = []
@@ -264,7 +265,9 @@ class Dataset:
 					end_index = last_index_position_list[word_index+1]
 					word_emb = features[sentence_index-i][start_index:end_index]
 					# word_embedding.append(torch.sum(word_emb, 0).numpy() / (end_index-start_index))
-					word_embedding.append(torch.sum(word_emb, 0).numpy())
+					sent_emb = torch.sum(word_emb, 0).numpy()
+					attention_emb = np.array(attention_features[sentence_index-i][word_index])
+					word_embedding.append(np.concatenate((sent_emb, attention_emb)))
 				self.words.append(word_embedding)
 
 	def order(self):

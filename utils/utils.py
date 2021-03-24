@@ -1,5 +1,6 @@
 import os
 import sys
+import time
 import matplotlib.pyplot as plt
 from utils import conll18_ud_eval
 
@@ -45,11 +46,55 @@ def ud_scores(gold_conllu_file, system_conllu_file):
 	evaluation = conll18_ud_eval.evaluate(gold_ud, system_ud)
 	return evaluation['UAS'].f1, evaluation['LAS'].f1
 
+def get_attention_embedding(ids_matrix, last_indexs, config):
+	n_ids = last_indexs[-2]
+	look_up_words = [0]
+	for word_index in range(len(last_indexs) - 2):
+		start_index = last_indexs[word_index]
+		end_index = last_indexs[word_index + 1]
+		look_up_words += [word_index]*(end_index - start_index)
+
+	emb = []
+	for word_index in range(len(last_indexs) - 2):
+		start_index = last_indexs[word_index]
+		end_index = last_indexs[word_index + 1]
+		first_score = second_score = first_position = second_position = -1
+		for id_index in range(start_index, end_index):
+			for j in range(1, n_ids):
+				score = ids_matrix[id_index][j]
+				position = look_up_words[j]
+				if position != word_index and score > second_score:
+					if score > first_score:
+						second_score = first_score
+						second_position = first_position
+						first_score = score
+						first_position = position
+					else:
+						second_score = score
+						second_position = position
+		emb.append([first_position, second_position])
+	return emb
+
+
+def is_required_attention_head(layer_index, head_index, requires):
+	for layer, head in requires:
+		if layer == layer_index and (head == head_index or head == '*'):
+			return True
+	return False
+
 # attention format: [layer: 12][batch][head: 12][ids][ids]
 # attention requires format: [(a,b), (a,b)] with a is hidden layer, b is head, if b is '*' = get all
-def get_attention_heads(attention_heads, attention_requires, attention_tops):
+# output: [batch][words][attention_emb_dim]
+def get_attention_heads(attention_heads, config, last_indexs):
 	n_layer = 12
 	n_heads = 12
-	embedding = []
-	# for layer in range(n_layer):
-	# 	for
+	embedding_list = []
+	for sentence_index in range(len(last_indexs)):
+		embedding = [[] for i in range(len(last_indexs[sentence_index]) - 2)]
+		for layer_index in range(n_layer):
+			for head_index in range(n_heads):
+				if is_required_attention_head(layer_index, head_index, config.attention_requires):
+					tmp_emb = get_attention_embedding(attention_heads[layer_index][sentence_index][head_index], last_indexs[sentence_index], config)
+					embedding = [current+tmp for current, tmp in zip(embedding, tmp_emb)]
+		embedding_list.append(embedding)
+	return embedding_list
