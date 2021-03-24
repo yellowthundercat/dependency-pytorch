@@ -48,4 +48,8 @@ def ud_scores(gold_conllu_file, system_conllu_file):
 # attention format: [layer: 12][batch][head: 12][ids][ids]
 # attention requires format: [(a,b), (a,b)] with a is hidden layer, b is head, if b is '*' = get all
 def get_attention_heads(attention_heads, attention_requires, attention_tops):
-	pass
+	n_layer = 12
+	n_heads = 12
+	embedding = []
+	# for layer in range(n_layer):
+	# 	for

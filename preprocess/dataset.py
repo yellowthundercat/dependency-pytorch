@@ -251,7 +251,7 @@ class Dataset:
 			# padded_input_ids.to(device)
 			with torch.no_grad():
 				origin_features = phobert(padded_input_ids)
-				# hidden layer format: [layer: 13(+1 output)][ids][768]
+				# hidden layer format: [layer: 13(+1 output)][batch][ids][768]
 				features = origin_features[2][self.config.phobert_layer]
 				# attention format: [layer: 12][batch][head: 12][ids][ids]
 				attention_heads = utils.get_attention_heads(origin_features[3], self.config.attention_requires, self.config.attention_head_tops)
