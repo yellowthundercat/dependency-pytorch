@@ -66,8 +66,8 @@ class DependencyParser:
 		self.optimizer.zero_grad()
 		loss.backward()
 		self.optimizer.step()
-		if self.config.cross_view:
-			self.scheduler.step()
+		# if self.config.cross_view:
+		self.scheduler.step()
 		return loss.item()
 
 	def train(self):
@@ -81,7 +81,7 @@ class DependencyParser:
 			unlabel_batches = self.unlabel_corpus.dataset.batches(self.config.batch_size, length_ordered=self.config.length_ordered)
 		# odd for teacher, even for student
 		t0 = time.time()
-		for global_step in range(self.saving_step+1, self.config.max_step):
+		for global_step in range(self.saving_step+1, self.config.max_step+1):
 			# train
 			if global_step % 2 == 1 or self.config.cross_view is False:
 				#train teacher
@@ -103,7 +103,7 @@ class DependencyParser:
 				count_student += 5
 
 			# print result
-			if global_step % self.config.print_step == 0:
+			if global_step % self.config.print_step == 0 or global_step == self.config.max_step:
 				t1 = time.time()
 				teacher_loss = total_teacher_loss/max(1, count_teacher)
 				student_loss = total_student_loss/max(1, count_student)
@@ -117,7 +117,7 @@ class DependencyParser:
 				count_teacher = count_student = 0
 
 			# eval dev
-			if global_step % self.config.eval_dev_every == 0:
+			if global_step % self.config.eval_dev_every == 0 or global_step == self.config.max_step:
 				print('-' * 20)
 				val_loss, uas, las = self.check_dev()
 				history['val_loss'].append(val_loss)

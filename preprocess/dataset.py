@@ -251,7 +251,10 @@ class Dataset:
 			# padded_input_ids.to(device)
 			with torch.no_grad():
 				origin_features = phobert(padded_input_ids)
+				# hidden layer format: [layer: 13(+1 output)][batch][ids][768]
 				features = origin_features[2][self.config.phobert_layer]
+				# attention format: [layer: 12][batch][head: 12][ids][ids]
+				attention_heads = utils.get_attention_heads(origin_features[3], self.config.attention_requires, self.config.attention_head_tops)
 			for sentence_index in range(i, min(n, i+batch_size)):
 				# get embedding of each word
 				word_embedding = []
@@ -323,9 +326,9 @@ class Dataset:
 
 class Corpus:
 	def __init__(self, config, device):
-		# phobert = AutoModel.from_pretrained("vinai/phobert-base", output_attentions=True, output_hidden_states=True)
+		phobert = AutoModel.from_pretrained("vinai/phobert-base", output_attentions=True, output_hidden_states=True)
 		# phobert = AutoModel.from_pretrained("vinai/phobert-base")
-		phobert = AutoModel.from_pretrained("vinai/phobert-base", output_hidden_states=True)
+		# phobert = AutoModel.from_pretrained("vinai/phobert-base", output_hidden_states=True)
 		tokenizer = AutoTokenizer.from_pretrained("vinai/phobert-base")
 
 		train_list = read_data(config.train_file, tokenizer)

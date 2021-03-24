@@ -3,12 +3,12 @@ import os
 class Config:
 	def __init__(self):
 		# general
-		self.model_name = 'test_model_cross_view'
+		self.model_name = 'test_model'
 		self.mode = 'train'  # option: 'train', 'evaluate', 'annotate'
 		self.use_small_subset = True
 		self.use_pos = False
 		self.cross_view = False
-		self.use_proccessed_embedding = False
+		self.use_proccessed_embedding = True
 
 		# file location
 		self.data_folder = 'data'
@@ -37,6 +37,10 @@ class Config:
 
 		# word level
 		self.phobert_layer = 8  # range: [0, ..., 12]
+		# attention requires format: [(a,b), (a,b)] with a is hidden layer, b is head, if b is '*' = get all
+		# range: [(0..11, 0..11 or *)]
+		self.attention_requires = [(7, '*'), (8, '*')]
+		self.attention_head_tops = 2
 		self.use_vn_pos = True
 		self.word_emb_dim = 300
 		self.phobert_dim = 768
