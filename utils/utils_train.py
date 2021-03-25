@@ -7,11 +7,11 @@ from utils import optimizer
 
 def init_model_student(main_self, config):
 	main_self.model_students = [
-		Parser(main_self.encoder, len(main_self.corpus.vocab.l2i), config, 'uni_bi', 'uni_bi'),
-		Parser(main_self.encoder, len(main_self.corpus.vocab.l2i), config, 'uni_fw', 'uni_fw'),
-		Parser(main_self.encoder, len(main_self.corpus.vocab.l2i), config, 'uni_fw', 'uni_bw'),
-		Parser(main_self.encoder, len(main_self.corpus.vocab.l2i), config, 'uni_bw', 'uni_fw'),
-		Parser(main_self.encoder, len(main_self.corpus.vocab.l2i), config, 'uni_bw', 'uni_bw')
+		Parser(main_self.encoder, len(main_self.corpus.vocab.l2i), config, 'uni_bi', 'uni_bi', config.student_dropout),
+		Parser(main_self.encoder, len(main_self.corpus.vocab.l2i), config, 'uni_fw', 'uni_fw', config.student_dropout),
+		Parser(main_self.encoder, len(main_self.corpus.vocab.l2i), config, 'uni_fw', 'uni_bw', config.student_dropout),
+		Parser(main_self.encoder, len(main_self.corpus.vocab.l2i), config, 'uni_bw', 'uni_fw', config.student_dropout),
+		Parser(main_self.encoder, len(main_self.corpus.vocab.l2i), config, 'uni_bw', 'uni_bw', config.student_dropout)
 	]
 	main_self.optimizer = optimizer.momentum(main_self.model.parameters(), config)
 	main_self.optimizer_students = [optimizer.momentum(model.parameters(), config) for model in main_self.model_students]
@@ -21,7 +21,10 @@ def init_model_student(main_self, config):
 
 def init_model(main_self, config):
 	main_self.encoder = RNNEncoder(config, len(main_self.corpus.vocab.t2i))
-	main_self.model = Parser(main_self.encoder, len(main_self.corpus.vocab.l2i), config, 'uni_bi', 'uni_bi')
+	if config.use_first_layer:
+		main_self.model = Parser(main_self.encoder, len(main_self.corpus.vocab.l2i), config, 'uni_bi', 'uni_bi', config.teacher_dropout)
+	else:
+		main_self.model = Parser(main_self.encoder, len(main_self.corpus.vocab.l2i), config, 'bi', 'bi', config.teacher_dropout)
 	main_self.saving_step = 0
 	main_self.best_las = main_self.best_uas = 0
 	if config.cross_view:

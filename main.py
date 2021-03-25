@@ -51,6 +51,7 @@ class DependencyParser:
 		total_loss = 0
 		for student_model, student_optimizer, student_scheduler in zip(self.model_students, self.optimizer_students, self.scheduler_students):
 			student_model.train()
+			student_model.encoder.mode = 'student'
 			loss = self.model(words, tags, heads, labels, masks)
 			student_optimizer.zero_grad()
 			loss.backward()
@@ -61,6 +62,7 @@ class DependencyParser:
 
 	def train_teacher(self, train_batch):
 		self.model.train()
+		self.model.encoder.mode = 'teacher'
 		words, tags, heads, labels, masks, lengths, origin_words = train_batch
 		loss = self.model(words, tags, heads, labels, masks)
 		self.optimizer.zero_grad()

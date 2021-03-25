@@ -7,7 +7,7 @@ from utils.mst import mst
 
 class Parser(nn.Module):
 
-	def __init__(self, encoder, n_label, config, head_repr_type, dep_repr_type):
+	def __init__(self, encoder, n_label, config, head_repr_type, dep_repr_type, dropout):
 		super().__init__()
 		self.head_repr_type = head_repr_type
 		self.dep_repr_type = dep_repr_type
@@ -16,10 +16,12 @@ class Parser(nn.Module):
 		# Sentence encoder module.
 		self.encoder = encoder
 		# Edge scoring module.
-		rnn_size = 4*config.rnn_size
-		if head_repr_type != 'uni_bi':
-			rnn_size = config.rnn_size
-		self.scorer = BiaffineScorer(config, rnn_size, n_label)
+		rnn_size = config.rnn_size
+		if head_repr_type == 'uni_bi':
+			rnn_size = 4 * config.rnn_size
+		if head_repr_type == 'bi':
+			rnn_size = 2 * config.rnn_size
+		self.scorer = BiaffineScorer(config, rnn_size, n_label, dropout)
 
 		# Loss function that we will use during training.
 		self.loss = torch.nn.CrossEntropyLoss(reduction='none')
@@ -32,6 +34,8 @@ class Parser(nn.Module):
 	# 	return words * w_dropout_mask, postags * p_dropout_mask
 
 	def get_repr_from_mode(self, rnn1_out, rnn2_out, uni_fw, uni_bw, mode):
+		if mode == 'bi':
+			return rnn2_out
 		if mode == 'uni_bi':
 			return torch.cat([rnn1_out, rnn2_out], dim=2)
 		if mode == 'uni_fw':

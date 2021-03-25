@@ -6,9 +6,9 @@ class Config:
 		self.model_name = 'test_model'
 		self.mode = 'train'  # option: 'train', 'evaluate', 'annotate'
 		self.use_small_subset = True
-		self.use_pos = False
+		self.use_pos = True
 		self.cross_view = False
-		self.use_proccessed_embedding = True
+		self.use_proccessed_embedding = False
 
 		# file location
 		self.data_folder = 'data'
@@ -36,11 +36,12 @@ class Config:
 		self.output_filename = 'output.txt'
 
 		# word level
+		self.use_first_layer = False
 		self.phobert_layer = 8  # range: [0, ..., 12]
 		# attention requires format: [(a,b), (a,b)] with a is hidden layer, b is head, if b is '*' = get all
 		# range: [(0..11, 0..11 or *)]
-		self.attention_requires = [(7, '*'), (8, '*')]
-		self.attention_head_tops = 2
+		# self.attention_requires = [(7, '*'), (8, '*')]
+		# self.attention_head_tops = 2
 		self.use_vn_pos = True
 		self.word_emb_dim = 300
 		self.phobert_dim = 768
@@ -48,12 +49,8 @@ class Config:
 
 		#sentence level
 		self.length_ordered = False
-		self.input_dropout = 0.33
-		self.word_dropout = 0.33
-		self.pos_dropout = 0.33
-		self.rnn_dropout = 0.33
-		self.arc_mlp_dropout = 0.33
-		self.lab_mlp_dropout = 0.33
+		self.teacher_dropout = 0.3
+		self.student_dropout = 0.5
 		self.rnn_size = 300  # output encode = 4*rnn_size (2 biLSTM)
 		self.rnn_depth = 3
 		self.arc_mlp_size = 400
