@@ -36,11 +36,12 @@ class Config:
 		self.output_filename = 'output.txt'
 
 		# word level
+		self.use_first_layer = False
 		self.phobert_layer = 8  # range: [0, ..., 12]
 		# attention requires format: [(a,b), (a,b)] with a is hidden layer, b is head, if b is '*' = get all
 		# range: [(0..11, 0..11 or *)]
-		self.attention_requires = [(7, '*'), (8, 3)]
-		self.attention_emb_dim = 26  # calculate by 2 * number of head
+		self.attention_requires = [(7, 1), (8, 3)]
+		self.attention_emb_dim = 2 + 1  # calculate by number of head + 1 (word index)
 		self.use_vn_pos = True
 		self.word_emb_dim = 300
 		self.phobert_dim = 768

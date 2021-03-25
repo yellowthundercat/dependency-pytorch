@@ -58,21 +58,15 @@ def get_attention_embedding(ids_matrix, last_indexs, config):
 	for word_index in range(len(last_indexs) - 2):
 		start_index = last_indexs[word_index]
 		end_index = last_indexs[word_index + 1]
-		first_score = second_score = first_position = second_position = -1
+		first_score = first_position = -1
 		for id_index in range(start_index, end_index):
 			for j in range(1, n_ids):
 				score = ids_matrix[id_index][j]
 				position = look_up_words[j]
-				if position != word_index and score > second_score:
-					if score > first_score:
-						second_score = first_score
-						second_position = first_position
-						first_score = score
-						first_position = position
-					else:
-						second_score = score
-						second_position = position
-		emb.append([first_position, second_position])
+				if position != word_index and score > first_score:
+					first_score = score
+					first_position = position
+		emb.append([first_position])
 	return emb
 
 

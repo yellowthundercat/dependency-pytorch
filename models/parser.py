@@ -16,9 +16,11 @@ class Parser(nn.Module):
 		# Sentence encoder module.
 		self.encoder = encoder
 		# Edge scoring module.
-		rnn_size = 4*config.rnn_size
-		if head_repr_type != 'uni_bi':
-			rnn_size = config.rnn_size
+		rnn_size = config.rnn_size
+		if head_repr_type == 'uni_bi':
+			rnn_size = 4*config.rnn_size
+		if head_repr_type == 'bi':
+			rnn_size = 2*config.rnn_size
 		self.scorer = BiaffineScorer(config, rnn_size, n_label)
 
 		# Loss function that we will use during training.
@@ -32,6 +34,8 @@ class Parser(nn.Module):
 	# 	return words * w_dropout_mask, postags * p_dropout_mask
 
 	def get_repr_from_mode(self, rnn1_out, rnn2_out, uni_fw, uni_bw, mode):
+		if mode == 'bi':
+			return rnn2_out
 		if mode == 'uni_bi':
 			return torch.cat([rnn1_out, rnn2_out], dim=2)
 		if mode == 'uni_fw':

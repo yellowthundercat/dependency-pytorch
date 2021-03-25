@@ -266,7 +266,7 @@ class Dataset:
 					word_emb = features[sentence_index-i][start_index:end_index]
 					# word_embedding.append(torch.sum(word_emb, 0).numpy() / (end_index-start_index))
 					sent_emb = torch.sum(word_emb, 0).numpy()
-					attention_emb = np.array(attention_features[sentence_index-i][word_index])
+					attention_emb = np.array(attention_features[sentence_index-i][word_index] + [word_index])
 					word_embedding.append(np.concatenate((sent_emb, attention_emb)))
 				self.words.append(word_embedding)
 
