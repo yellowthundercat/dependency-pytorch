@@ -101,11 +101,13 @@ def read_data(filename, tokenizer):
 	utils.log('Number of sentence:', len(sentence_list))
 	return sentence_list
 
-def read_unlabel_data(file_name, tokenizer):
+def read_unlabel_data(file_name, tokenizer, vocab):
 	sentence_list = []
 	input_file = open(file_name, encoding='utf-8')
 	for sentence in input_file:
 		words = sentence[:-1].split(' ')
+		for word in words:
+			vocab.add_word(word)
 		if 2 < len(words) < 60:
 			sentence_list.append(unlabel_sentence(words, tokenizer))
 	return sentence_list
@@ -115,21 +117,22 @@ def preprocess_word(word):
 
 class Sentence:
 	def __init__(self, word_list, ud_pos_list, vn_pos_list, head_list, dependency_list, tokenizer):
-		cls_id = 0
-		sep_id = 2
-		input_ids = [cls_id]
-		last_index_position_list = [1]
-		# get encode index from word
-		for word in word_list:
-			token = tokenizer.encode(preprocess_word(word))
-			input_ids += token[1:(len(token)-1)]
+		if tokenizer:
+			cls_id = 0
+			sep_id = 2
+			input_ids = [cls_id]
+			last_index_position_list = [1]
+			# get encode index from word
+			for word in word_list:
+				token = tokenizer.encode(preprocess_word(word))
+				input_ids += token[1:(len(token)-1)]
+				last_index_position_list.append(len(input_ids))
+			input_ids.append(sep_id)
 			last_index_position_list.append(len(input_ids))
-		input_ids.append(sep_id)
-		last_index_position_list.append(len(input_ids))
-		# get embedding of full sentence
-		# input_ids = torch.tensor([input_ids])
-		self.input_ids = input_ids
-		self.last_index_position = last_index_position_list
+			# get embedding of full sentence
+			# input_ids = torch.tensor([input_ids])
+			self.input_ids = input_ids
+			self.last_index_position = last_index_position_list
 
 		self.word = word_list
 		self.ud_pos = ud_pos_list
@@ -219,11 +222,15 @@ class Dataset:
 			if not config.use_vn_pos:
 				tag_list = sentence.ud_pos
 			self.tags.append([vocab.t2i[tag] for tag in tag_list])
+			self.words.append([vocab.w2i[word] for word in sentence.word])
 			self.heads.append(sentence.head_index)
 			self.labels.append([vocab.l2i[label] for label in sentence.dependency_label])
-			input_ids.append(sentence.input_ids)
-			last_index_position.append(sentence.last_index_position)
-		self.process_embedding(phobert, input_ids, last_index_position, device)
+			if config.use_phobert:
+				input_ids.append(sentence.input_ids)
+				last_index_position.append(sentence.last_index_position)
+
+		if config.use_phobert:
+			self.process_embedding(phobert, input_ids, last_index_position, device)
 		self.init_bucket()
 
 	def init_bucket(self):
@@ -306,7 +313,10 @@ class Dataset:
 		if length_ordered:
 			self.order()
 		for i in batch_order:
-			words = pad_word_embedding(self.words[i:i + batch_size], self.config)
+			if self.config.use_phobert:
+				words = pad_word_embedding(self.words[i:i + batch_size], self.config)
+			else:
+				words = pad(self.words[i:i + batch_size])
 			tags = pad(self.tags[i:i + batch_size])
 			heads = pad(self.heads[i:i + batch_size])
 			labels = pad(self.labels[i:i + batch_size])
@@ -328,8 +338,10 @@ class Corpus:
 	def __init__(self, config, device):
 		# phobert = AutoModel.from_pretrained("vinai/phobert-base", output_attentions=True, output_hidden_states=True)
 		# phobert = AutoModel.from_pretrained("vinai/phobert-base")
-		phobert = AutoModel.from_pretrained("vinai/phobert-base", output_hidden_states=True)
-		tokenizer = AutoTokenizer.from_pretrained("vinai/phobert-base")
+		phobert = tokenizer = None
+		if config.use_phobert:
+			phobert = AutoModel.from_pretrained("vinai/phobert-base", output_hidden_states=True)
+			tokenizer = AutoTokenizer.from_pretrained("vinai/phobert-base")
 
 		train_list = read_data(config.train_file, tokenizer)
 		dev_list = read_data(config.dev_file, tokenizer)
@@ -356,13 +368,13 @@ class Unlabel_Corpus:
 			if os.path.exists(embedding_file) and config.use_proccessed_embedding:
 				print('loading', embedding_file)
 				self.dataset.concat(torch.load(embedding_file))
-			else:
-				if phobert is None:
+			elif config.create_unlabel_embedding:
+				if phobert is None and config.use_phobert:
 					# phobert = AutoModel.from_pretrained("vinai/phobert-base")
 					phobert = AutoModel.from_pretrained("vinai/phobert-base", output_hidden_states=True)
 					tokenizer = AutoTokenizer.from_pretrained("vinai/phobert-base")
 				print('creating', embedding_file)
-				unlabel_list = read_unlabel_data(input_file, tokenizer)
+				unlabel_list = read_unlabel_data(input_file, tokenizer, vocab)
 				current_dataset = Dataset(config, unlabel_list, vocab, phobert, device, False)
 				torch.save(current_dataset, embedding_file)
 				self.dataset.concat(current_dataset)

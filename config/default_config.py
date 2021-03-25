@@ -7,8 +7,9 @@ class Config:
 		self.mode = 'train'  # option: 'train', 'evaluate', 'annotate'
 		self.use_small_subset = True
 		self.use_pos = True
-		self.cross_view = False
-		self.use_proccessed_embedding = False
+		self.cross_view = True
+		self.use_proccessed_embedding = True
+		self.create_unlabel_embedding = True
 
 		# file location
 		self.data_folder = 'data'
@@ -36,7 +37,8 @@ class Config:
 		self.output_filename = 'output.txt'
 
 		# word level
-		self.use_first_layer = False
+		self.use_phobert = False
+		self.use_first_layer = True
 		self.phobert_layer = 8  # range: [0, ..., 12]
 		# attention requires format: [(a,b), (a,b)] with a is hidden layer, b is head, if b is '*' = get all
 		# range: [(0..11, 0..11 or *)]

@@ -3,7 +3,7 @@ from torch import nn
 
 class RNNEncoder(nn.Module):
 
-	def __init__(self, config, pos_vocab_length):
+	def __init__(self, config, pos_vocab_length, word_vocab_length):
 		super().__init__()
 		self.config = config
 		self.mode = 'teacher'
@@ -12,7 +12,10 @@ class RNNEncoder(nn.Module):
 		# If we're using pre-trained word embeddings, we need to copy them.
 		# if word_field.vocab.vectors is not None:
 		# 	self.word_embedding.weight = nn.Parameter(word_field.vocab.vectors, requires_grad=update_pretrained)
-		self.word_project = nn.Sequential(nn.Linear(config.phobert_dim, config.word_emb_dim), nn.ReLU())
+		if config.use_phobert:
+			self.word_project = nn.Sequential(nn.Linear(config.phobert_dim, config.word_emb_dim), nn.ReLU())
+		else:
+			self.word_project = nn.Embedding(word_vocab_length, config.word_emb_dim)
 
 		# POS-tag embeddings will always be trained from scratch.
 		self.pos_embedding = nn.Embedding(pos_vocab_length, config.pos_emb_dim)
@@ -39,7 +42,8 @@ class RNNEncoder(nn.Module):
 												dropout=config.teacher_dropout, num_layers=config.rnn_depth-1)
 
 	def forward_student(self, words, postags):
-		words = self.input_word_dropout_student(words)
+		if self.config.use_phobert:
+			words = self.input_word_dropout_student(words)
 
 		# Look up
 		# word_emb = self.word_embedding(words)
@@ -62,7 +66,7 @@ class RNNEncoder(nn.Module):
 	def forward(self, words, postags):
 		if self.mode == 'student' and self.training:
 			return self.forward_student(words, postags)
-		if self.training:
+		if self.training and self.config.use_phobert:
 			words = self.input_word_dropout(words)
 
 		# Look up

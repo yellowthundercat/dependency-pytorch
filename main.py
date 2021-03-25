@@ -21,10 +21,13 @@ class DependencyParser:
 		else:
 			print('preprocess corpus')
 			self.corpus = dataset.Corpus(config, self.device)
-			torch.save(self.corpus, config.corpus_file)
 		if config.cross_view and config.mode == 'train':
 			print('prepare unlabel data')
+			print('vocab', len(self.corpus.vocab.w2i))
 			self.unlabel_corpus = dataset.Unlabel_Corpus(config, self.device, self.corpus.vocab)
+			print('vocab', len(self.corpus.vocab.w2i))
+
+		torch.save(self.corpus, config.corpus_file)
 
 		# model
 		if os.path.exists(config.model_file):
