@@ -105,7 +105,7 @@ def read_unlabel_data(file_name, tokenizer):
 	sentence_list = []
 	input_file = open(file_name, encoding='utf-8')
 	for sentence in input_file:
-		words = sentence.split(' ')
+		words = sentence[:-1].split(' ')
 		if 2 < len(words) < 60:
 			sentence_list.append(unlabel_sentence(words, tokenizer))
 	return sentence_list

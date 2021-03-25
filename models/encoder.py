@@ -12,7 +12,7 @@ class RNNEncoder(nn.Module):
 		# If we're using pre-trained word embeddings, we need to copy them.
 		# if word_field.vocab.vectors is not None:
 		# 	self.word_embedding.weight = nn.Parameter(word_field.vocab.vectors, requires_grad=update_pretrained)
-		self.word_project = nn.Linear(config.phobert_dim, config.word_emb_dim)
+		self.word_project = nn.Sequential(nn.Linear(config.phobert_dim, config.word_emb_dim), nn.ReLU())
 
 		# POS-tag embeddings will always be trained from scratch.
 		self.pos_embedding = nn.Embedding(pos_vocab_length, config.pos_emb_dim)
