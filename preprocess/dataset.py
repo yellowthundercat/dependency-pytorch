@@ -222,12 +222,13 @@ class Dataset:
 			if not config.use_vn_pos:
 				tag_list = sentence.ud_pos
 			self.tags.append([vocab.t2i[tag] for tag in tag_list])
-			self.words.append([vocab.w2i[word] for word in sentence.word])
 			self.heads.append(sentence.head_index)
 			self.labels.append([vocab.l2i[label] for label in sentence.dependency_label])
 			if config.use_phobert:
 				input_ids.append(sentence.input_ids)
 				last_index_position.append(sentence.last_index_position)
+			else:
+				self.words.append([vocab.w2i[word] for word in sentence.word])
 
 		if config.use_phobert:
 			self.process_embedding(phobert, input_ids, last_index_position, device)
