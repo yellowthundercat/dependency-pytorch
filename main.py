@@ -23,9 +23,11 @@ class DependencyParser:
 			self.corpus = dataset.Corpus(config, self.device)
 		if config.cross_view and config.mode == 'train':
 			print('prepare unlabel data')
-			print('vocab', len(self.corpus.vocab.w2i))
+			if not config.use_phobert:
+				print('vocab', len(self.corpus.vocab.w2i))
 			self.unlabel_corpus = dataset.Unlabel_Corpus(config, self.device, self.corpus.vocab)
-			print('vocab', len(self.corpus.vocab.w2i))
+			if not config.use_phobert:
+				print('vocab', len(self.corpus.vocab.w2i))
 
 		torch.save(self.corpus, config.corpus_file)
 
@@ -45,8 +47,8 @@ class DependencyParser:
 	def train_student(self, unlabel_batch):
 		# use teacher to predict
 		self.model.eval()
-		words, tags, heads, labels, masks, lengths, origin_words = unlabel_batch
-		head_list, lab_list = self.model.predict_batch(words, tags, lengths)
+		words, tags, heads, labels, masks, lengths, origin_words, chars = unlabel_batch
+		head_list, lab_list = self.model.predict_batch(words, tags, chars, lengths)
 		heads = dataset.pad([head.tolist() for head in head_list])
 		labels = dataset.pad([lab.tolist() for lab in lab_list])
 
@@ -55,7 +57,7 @@ class DependencyParser:
 		for student_model, student_optimizer, student_scheduler in zip(self.model_students, self.optimizer_students, self.scheduler_students):
 			student_model.train()
 			student_model.encoder.mode = 'student'
-			loss = self.model(words, tags, heads, labels, masks)
+			loss = self.model(words, tags, chars, heads, labels, masks)
 			student_optimizer.zero_grad()
 			loss.backward()
 			student_optimizer.step()
@@ -66,8 +68,8 @@ class DependencyParser:
 	def train_teacher(self, train_batch):
 		self.model.train()
 		self.model.encoder.mode = 'teacher'
-		words, tags, heads, labels, masks, lengths, origin_words = train_batch
-		loss = self.model(words, tags, heads, labels, masks)
+		words, tags, heads, labels, masks, lengths, origin_words, chars = train_batch
+		loss = self.model(words, tags, chars, heads, labels, masks)
 		self.optimizer.zero_grad()
 		loss.backward()
 		self.optimizer.step()
@@ -158,8 +160,8 @@ class DependencyParser:
 		with torch.no_grad():
 			for batch in dev_batches:
 				dev_batch_length += 1
-				words, tags, heads, labels, masks, lengths, origin_words = batch
-				loss, head_list, lab_list = self.model.predict_batch_with_loss(words, tags, heads, labels, masks, lengths)
+				words, tags, heads, labels, masks, lengths, origin_words, chars = batch
+				loss, head_list, lab_list = self.model.predict_batch_with_loss(words, tags, chars, heads, labels, masks, lengths)
 				stats['val_loss'] += loss.item()
 				dev_head_list += head_list
 				dev_lab_list += lab_list
@@ -189,8 +191,8 @@ class DependencyParser:
 		with torch.no_grad():
 			for batch in test_batches:
 				test_batch_length += 1
-				words, tags, heads, labels, masks, lengths, origin_words = batch
-				head_list, lab_list = self.model.predict_batch(words, tags, lengths)
+				words, tags, heads, labels, masks, lengths, origin_words, chars = batch
+				head_list, lab_list = self.model.predict_batch(words, tags, chars, lengths)
 				gold_head_list += [head.data.numpy()[:lent] for head, lent in zip(heads.cpu(), lengths)]
 				gold_lab_list += [lab.data.numpy()[:lent] for lab, lent in zip(labels.cpu(), lengths)]
 				test_head_list += head_list

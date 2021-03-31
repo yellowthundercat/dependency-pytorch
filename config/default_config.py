@@ -6,9 +6,9 @@ class Config:
 		self.model_name = 'test_model'
 		self.mode = 'train'  # option: 'train', 'evaluate', 'annotate'
 		self.use_small_subset = True
-		self.use_pos = True
+		self.use_pos = False
 		self.cross_view = True
-		self.use_proccessed_embedding = True
+		self.use_proccessed_embedding = False
 		self.create_unlabel_embedding = True
 
 		# file location
@@ -31,13 +31,14 @@ class Config:
 			self.train_file = os.path.join(self.data_folder, 'train.txt')
 			self.dev_file = os.path.join(self.data_folder, 'dev.txt')
 			self.test_file = os.path.join(self.data_folder, 'test.txt')
-			self.unlabel_folder = os.path.join(self.data_folder, 'unlabel_data')
+			self.unlabel_folder = os.path.join(self.data_folder, 'unlabel_data_small')
 		# for annotation
 		self.input_filename = 'input.txt'
 		self.output_filename = 'output.txt'
 
 		# word level
 		self.use_phobert = False
+		self.use_charCNN = True
 		self.use_first_layer = True
 		self.phobert_layer = 8  # range: [0, ..., 12]
 		# attention requires format: [(a,b), (a,b)] with a is hidden layer, b is head, if b is '*' = get all
@@ -48,6 +49,7 @@ class Config:
 		self.word_emb_dim = 300
 		self.phobert_dim = 768
 		self.pos_emb_dim = 50
+		self.charCNN_dim = 0  # set later in code
 
 		#sentence level
 		self.length_ordered = False
