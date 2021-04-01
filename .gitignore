@@ -140,6 +140,10 @@ data/test_model/
 
 data/corpus.pickle
 
+data/train_embedding.txt
+data/dev_embedding.txt
+data/test_embedding.txt
+
 data/parsing.txt
 
 data/error_sample.txt
