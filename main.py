@@ -2,7 +2,7 @@ from collections import defaultdict, Counter
 import os
 import time
 import torch
-
+import json
 from config.default_config import Config
 from utils import utils
 from preprocess import dataset
@@ -144,6 +144,8 @@ class DependencyParser:
 		print('best las:', self.best_las)
 		print('best step', self.saving_step)
 		print('-'*20)
+		with (open("eval_dev.json", 'a') as f):
+			f.write(json.dump(history))
 		self.evaluate()
 
 	def check_dev(self):
@@ -205,6 +207,10 @@ class DependencyParser:
 															 gold_lab_list, test_length_list)
 			uas, las = utils.ud_scores(self.config.test_file, self.config.parsing_file)
 			print(f'Evaluating Result: UAS = {uas:.4f}, LAS = {las:.4}')
+		with open("eval_val.txt", 'a') as f:
+			f.write("Layer", self.config.phobert_layer, ":" )
+			f.writelines(uas)
+			f.writelines(las)
 
 	def annotate(self):
 		print('parsing')
@@ -223,10 +229,10 @@ def main():
 		config = Config()
 		utils.ensure_dir(config.save_folder)
 		# utils.ensure_dir(config.unlabel_embedding_folder)
-		if os.path.exists(config.config_file):
-			config = torch.load(config.config_file)
-			config.phobert_layer = l
-			print("config.phobert_layer:", config.phobert_layer)
+		# if os.path.exists(config.config_file):
+		# 	config = torch.load(config.config_file)
+		config.phobert_layer = l
+		print("config.phobert_layer:", config.phobert_layer)
 		# Parser
 		parser = DependencyParser(config)
 		t1 = time.time()
