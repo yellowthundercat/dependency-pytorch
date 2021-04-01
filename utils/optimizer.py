@@ -5,8 +5,8 @@ from torch.optim.lr_scheduler import LambdaLR
 def adam(params, config):
 	return torch.optim.Adam(params, betas=(0.9, 0.9), lr=0.005, weight_decay=1e-5)
 
-def momentum(params, config):
-	return torch.optim.SGD(params, lr=config.lr_momentum, momentum=config.momentum)
+def momentum(params, config, base_lr):
+	return torch.optim.SGD(params, lr=base_lr, momentum=config.momentum)
 
 class LRPolicy(object):
 	def __init__(self, config):

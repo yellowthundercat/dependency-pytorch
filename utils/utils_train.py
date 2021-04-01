@@ -13,8 +13,8 @@ def init_model_student(main_self, config):
 		Parser(main_self.encoder, len(main_self.corpus.vocab.l2i), config, 'uni_bw', 'uni_fw', config.student_dropout),
 		Parser(main_self.encoder, len(main_self.corpus.vocab.l2i), config, 'uni_bw', 'uni_bw', config.student_dropout)
 	]
-	main_self.optimizer = optimizer.momentum(main_self.model.parameters(), config)
-	main_self.optimizer_students = [optimizer.momentum(model.parameters(), config) for model in main_self.model_students]
+	main_self.optimizer = optimizer.momentum(main_self.model.parameters(), config, config.lr_momentum)
+	main_self.optimizer_students = [optimizer.momentum(model.parameters(), config, config.student_lr_momentum) for model in main_self.model_students]
 	main_self.scheduler = optimizer.momentum_scheduler(main_self.optimizer, config)
 	main_self.scheduler_students = [optimizer.momentum_scheduler(opt_student, config) for opt_student in
 																	main_self.optimizer_students]
