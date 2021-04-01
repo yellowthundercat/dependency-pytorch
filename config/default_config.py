@@ -8,12 +8,14 @@ class Config:
 		self.use_small_subset = True
 		self.use_pos = False
 		self.cross_view = True
-		self.use_proccessed_embedding = False
+		self.use_proccessed_embedding = True
 		self.create_unlabel_embedding = True
 
 		# file location
 		self.data_folder = 'data'
-		self.corpus_file = os.path.join(self.data_folder, 'corpus.pickle')
+		self.train_embedding = os.path.join(self.data_folder, 'train_embedding.txt')
+		self.dev_embedding = os.path.join(self.data_folder, 'dev_embedding.txt')
+		self.test_embedding = os.path.join(self.data_folder, 'test_embedding.txt')
 		self.parsing_file = os.path.join(self.data_folder, 'parsing.txt')
 		self.annotate_file = os.path.join(self.data_folder, 'annotate.txt')
 		self.error_sample_file = os.path.join(self.data_folder, 'error_sample.txt')
@@ -31,13 +33,13 @@ class Config:
 			self.train_file = os.path.join(self.data_folder, 'train.txt')
 			self.dev_file = os.path.join(self.data_folder, 'dev.txt')
 			self.test_file = os.path.join(self.data_folder, 'test.txt')
-			self.unlabel_folder = os.path.join(self.data_folder, 'unlabel_data_small')
+			self.unlabel_folder = os.path.join(self.data_folder, 'unlabel_data')
 		# for annotation
 		self.input_filename = 'input.txt'
 		self.output_filename = 'output.txt'
 
 		# word level
-		self.use_phobert = False
+		self.use_phobert = True
 		self.use_charCNN = True
 		self.use_first_layer = True
 		self.phobert_layer = 8  # range: [0, ..., 12]

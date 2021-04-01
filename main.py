@@ -15,12 +15,8 @@ class DependencyParser:
 		self.config = config
 
 		# word embedding
-		if os.path.exists(config.corpus_file) and config.use_proccessed_embedding:
-			print('load preprocessed corpus')
-			self.corpus = torch.load(config.corpus_file)
-		else:
-			print('preprocess corpus')
-			self.corpus = dataset.Corpus(config, self.device)
+		print('preprocess corpus')
+		self.corpus = dataset.Corpus(config, self.device)
 		if config.cross_view and config.mode == 'train':
 			print('prepare unlabel data')
 			if not config.use_phobert:
@@ -28,8 +24,6 @@ class DependencyParser:
 			self.unlabel_corpus = dataset.Unlabel_Corpus(config, self.device, self.corpus.vocab)
 			if not config.use_phobert:
 				print('vocab', len(self.corpus.vocab.w2i))
-
-		torch.save(self.corpus, config.corpus_file)
 
 		# model
 		if os.path.exists(config.model_file):

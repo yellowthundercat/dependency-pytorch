@@ -3,6 +3,7 @@ import numpy as np
 import torch
 from collections import defaultdict
 from transformers import AutoModel, AutoTokenizer
+import json
 
 from preprocess.sentence_level import preprocess_word, read_data, read_unlabel_data
 from preprocess.char import CHAR_DEFAULT, PAD_TOKEN, PAD_INDEX, UNK_TOKEN, UNK_INDEX, ROOT_TOKEN, ROOT_TAG, ROOT_LABEL, ROOT_INDEX
@@ -147,7 +148,7 @@ class Vocab:
 
 
 class Dataset:
-	def __init__(self, config, sentence_list, vocab, phobert, device, origin_ordered=False):
+	def __init__(self, config, sentence_list, vocab, phobert, device, origin_ordered=False, embedding_filename=None):
 		self.orgin_ordered = origin_ordered
 		self.words = []
 		self.tags = []
@@ -182,7 +183,15 @@ class Dataset:
 				self.words.append([vocab.w2i[preprocess_word(word)] for word in sentence.word])
 
 		if config.use_phobert:
-			self.process_embedding(phobert, input_ids, last_index_position, device)
+			if embedding_filename is not None and os.path.exists(embedding_filename) and config.use_proccessed_embedding:
+				embedding_file = open(embedding_filename)
+				print('loading file:', embedding_filename)
+				self.words = json.load(embedding_file)
+			else:
+				self.process_embedding(phobert, input_ids, last_index_position, device)
+				if embedding_filename:
+					with open(embedding_filename, 'w') as outfile:
+						json.dump(self.words, outfile)
 		self.init_bucket()
 
 	def init_bucket(self):
@@ -223,7 +232,7 @@ class Dataset:
 					end_index = last_index_position_list[word_index+1]
 					word_emb = features[sentence_index-i][start_index:end_index]
 					# word_embedding.append(torch.sum(word_emb, 0).numpy() / (end_index-start_index))
-					word_embedding.append(torch.sum(word_emb, 0).numpy())
+					word_embedding.append(torch.sum(word_emb, 0).numpy().tolist())
 				self.words.append(word_embedding)
 
 	def swap_data(self, new_order):
@@ -304,32 +313,24 @@ class Corpus:
 			self.vocab = torch.load(config.vocab_file)
 		else:
 			self.vocab = Vocab(config, train_list + dev_list + test_list)
-		self.train = Dataset(config, train_list, self.vocab, phobert, device, False)
-		self.dev = Dataset(config, dev_list, self.vocab, phobert, device, True)
-		self.test = Dataset(config, test_list, self.vocab, phobert, device, True)
+		self.train = Dataset(config, train_list, self.vocab, phobert, device, False, config.train_embedding)
+		self.dev = Dataset(config, dev_list, self.vocab, phobert, device, True, config.dev_embedding)
+		self.test = Dataset(config, test_list, self.vocab, phobert, device, True, config.test_embedding)
 
 class Unlabel_Corpus:
 	def __init__(self, config, device, vocab):
 		self.config = config
-		phobert = tokenizer = None
+		phobert = AutoModel.from_pretrained("vinai/phobert-base", output_hidden_states=True)
+		tokenizer = AutoTokenizer.from_pretrained("vinai/phobert-base")
 		self.dataset = Dataset(config, [], vocab, phobert, device)
 		for file_name in os.listdir(config.unlabel_folder):
 			if file_name.endswith('.txt') is False:
 				continue
 			embedding_file = os.path.join(config.unlabel_embedding_folder, file_name)
 			input_file = os.path.join(config.unlabel_folder, file_name)
-			if os.path.exists(embedding_file) and config.use_proccessed_embedding:
-				print('loading', embedding_file)
-				self.dataset.concat(torch.load(embedding_file))
-			elif config.create_unlabel_embedding:
-				if phobert is None and config.use_phobert:
-					# phobert = AutoModel.from_pretrained("vinai/phobert-base")
-					phobert = AutoModel.from_pretrained("vinai/phobert-base", output_hidden_states=True)
-					tokenizer = AutoTokenizer.from_pretrained("vinai/phobert-base")
-				print('creating', embedding_file)
+			if config.create_unlabel_embedding or os.path.exists(embedding_file):
 				unlabel_list = read_unlabel_data(input_file, tokenizer, vocab)
-				current_dataset = Dataset(config, unlabel_list, vocab, phobert, device, False)
-				torch.save(current_dataset, embedding_file)
+				current_dataset = Dataset(config, unlabel_list, vocab, phobert, device, False, embedding_file)
 				self.dataset.concat(current_dataset)
 		self.dataset.init_bucket()
 		print('total length unlabel corpus:', len(self.dataset.lengths))
