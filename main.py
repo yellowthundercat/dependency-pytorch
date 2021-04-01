@@ -144,8 +144,13 @@ class DependencyParser:
 		print('best las:', self.best_las)
 		print('best step', self.saving_step)
 		print('-'*20)
+<<<<<<< HEAD
 		with open("eval_dev_{}.json".format(self.config.phobert_layer), 'a') as f:
 			json.dump(history, f)
+=======
+		with (open("eval_dev.json", 'a') as f):
+			f.write(json.dump(history))
+>>>>>>> test phobert hidden layer
 		self.evaluate()
 
 	def check_dev(self):
@@ -207,8 +212,15 @@ class DependencyParser:
 															 gold_lab_list, test_length_list)
 			uas, las = utils.ud_scores(self.config.test_file, self.config.parsing_file)
 			print(f'Evaluating Result: UAS = {uas:.4f}, LAS = {las:.4}')
+<<<<<<< HEAD
 		with open("eval_val_{}.txt".format(self.config.phobert_layer), 'a') as f:
 			f.write("Layer {0}: UAS={1} | LAS={2}\n".format(self.config.phobert_layer, uas, las))
+=======
+		with open("eval_val.txt", 'a') as f:
+			f.write("Layer", self.config.phobert_layer, ":" )
+			f.writelines(uas)
+			f.writelines(las)
+>>>>>>> test phobert hidden layer
 
 	def annotate(self):
 		print('parsing')
