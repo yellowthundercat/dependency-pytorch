@@ -27,13 +27,16 @@ class DependencyParser:
 			self.unlabel_corpus = dataset.Unlabel_Corpus(config, self.device, self.corpus.vocab)
 
 		# model
-		if os.path.exists(config.model_file):
-			print('We will continue training')
-			all_model = torch.load(config.model_file)
-			utils_train.load_model(self, all_model, config)
-		else:
-			print('We will train model from scratch')
-			utils_train.init_model(self, config)
+		# if os.path.exists(config.model_file):
+		# 	print('We will continue training')
+		# 	all_model = torch.load(config.model_file)
+		# 	utils_train.load_model(self, all_model, config)
+		# else:
+
+		print('We will train model from scratch')
+		self.config.model_file = os.path.join(self.config.save_folder, 'all_model_{}.pt'.format(self.config.phobert_layer))
+
+		utils_train.init_model(self, config)
 		self.model.to(self.device)
 		if config.cross_view:
 			for model_student in self.model_students:
@@ -162,7 +165,9 @@ class DependencyParser:
 				dev_lab_list += lab_list
 				dev_word_list += origin_words
 				dev_length_list += lengths
-
+		# trinh
+		print("phobert_layer", self.config.phobert_layer)
+		self.config.parsing_file = os.path.join(self.config.data_folder, 'parsing_{}.txt'.format(self.config.phobert_layer))
 		utils.write_conll(self.corpus.vocab, dev_word_list, dev_head_list, dev_lab_list, dev_length_list,
 											self.config.parsing_file)
 		val_loss = stats['val_loss'] / dev_batch_length
@@ -210,25 +215,31 @@ class DependencyParser:
 
 
 def main():
-	# load config
-	config = Config()
-	utils.ensure_dir(config.save_folder)
-	utils.ensure_dir(config.unlabel_embedding_folder)
-	if os.path.exists(config.config_file):
-		config = torch.load(config.config_file)
-
 	t0 = time.time()
-	parser = DependencyParser(config)
-	t1 = time.time()
-	print(f'init time = {t1 - t0:.4f}')
+	for l in range(7, 11):
+		print("=====Layer {}=====".format(l))
 
-	if config.mode == 'train':
-		parser.train()
-	elif config.mode == 'evaluate':
-		parser.evaluate()
-	else:
-		parser.annotate()
+		# load config
+		config = Config()
+		utils.ensure_dir(config.save_folder)
+		# utils.ensure_dir(config.unlabel_embedding_folder)
+		if os.path.exists(config.config_file):
+			config = torch.load(config.config_file)
+			config.phobert_layer = l
+			print("config.phobert_layer:", config.phobert_layer)
+		# Parser
+		parser = DependencyParser(config)
+		t1 = time.time()
+		print(f'init time = {t1 - t0:.4f}')
 
+		if config.mode == 'train':
+			parser.train()
+		elif config.mode == 'evaluate':
+			parser.evaluate()
+		else:
+			parser.annotate()
+		t2 = time.time()
+		print(f'train time = {t2 - t1:.4f}')
 
 if __name__ == '__main__':
 	main()

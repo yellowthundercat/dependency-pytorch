@@ -326,9 +326,9 @@ class Dataset:
 
 class Corpus:
 	def __init__(self, config, device):
-		# phobert = AutoModel.from_pretrained("vinai/phobert-base", output_attentions=True, output_hidden_states=True)
+		phobert = AutoModel.from_pretrained("vinai/phobert-base", output_attentions=True, output_hidden_states=True)
 		# phobert = AutoModel.from_pretrained("vinai/phobert-base")
-		phobert = AutoModel.from_pretrained("vinai/phobert-base", output_hidden_states=True)
+		# phobert = AutoModel.from_pretrained("vinai/phobert-base", output_hidden_states=True)
 		tokenizer = AutoTokenizer.from_pretrained("vinai/phobert-base")
 
 		train_list = read_data(config.train_file, tokenizer)

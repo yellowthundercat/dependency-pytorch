@@ -6,7 +6,7 @@ class Config:
 		self.model_name = 'test_model'
 		self.mode = 'train'  # option: 'train', 'evaluate', 'annotate'
 		self.use_small_subset = True
-		self.use_pos = True
+		self.use_pos = False
 		self.cross_view = False
 		self.use_proccessed_embedding = False
 
@@ -43,7 +43,7 @@ class Config:
 		# self.attention_requires = [(7, '*'), (8, '*')]
 		# self.attention_head_tops = 2
 		self.use_vn_pos = True
-		self.word_emb_dim = 300
+		self.word_emb_dim = 200
 		self.phobert_dim = 768
 		self.pos_emb_dim = 50
 
@@ -53,7 +53,7 @@ class Config:
 		self.student_dropout = 0.5
 		self.rnn_size = 300  # output encode = 4*rnn_size (2 biLSTM)
 		self.rnn_depth = 3
-		self.arc_mlp_size = 400
+		self.arc_mlp_size = 200
 		self.lab_mlp_size = 100
 
 		# train
@@ -66,6 +66,7 @@ class Config:
 			self.print_step = 2
 			self.eval_dev_every = 10
 			self.max_step = 100
+
 
 		# optimizer
 		# momentum for cross-view training
