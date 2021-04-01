@@ -59,7 +59,8 @@ class Config:
 
 		# train
 		self.max_step = 20000
-		self.batch_size = 64
+		self.batch_size = 32
+		self.phobert_batch_size = 4
 		self.print_step = 50
 		self.eval_dev_every = 500  # how often to evaluate on the dev set
 		if self.use_small_subset:
