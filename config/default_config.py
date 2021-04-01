@@ -7,7 +7,7 @@ class Config:
 		self.mode = 'train'  # option: 'train', 'evaluate', 'annotate'
 		self.continue_train = False
 		self.use_small_subset = True
-		self.use_pos = True
+		self.use_pos = False
 		self.cross_view = False
 
 		# file location
@@ -67,6 +67,7 @@ class Config:
 			self.print_step = 2
 			self.eval_dev_every = 10
 			self.max_step = 100
+
 
 		# optimizer
 		# momentum for cross-view training

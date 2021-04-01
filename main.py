@@ -1,9 +1,9 @@
+%%writefile main.py
 from collections import defaultdict, Counter
 import os
 import time
 import torch
-from transformers import AutoModel, AutoTokenizer
-
+import json
 from config.default_config import Config
 from utils import utils
 from preprocess import dataset
@@ -16,15 +16,16 @@ class DependencyParser:
 		self.config = config
 
 		# word embedding
-		print('preprocess corpus')
-		phobert = tokenizer = None
-		if config.use_phobert:
-			phobert = AutoModel.from_pretrained("vinai/phobert-base", output_hidden_states=True).to(self.device)
-			tokenizer = AutoTokenizer.from_pretrained("vinai/phobert-base")
-		self.corpus = dataset.Corpus(config, self.device, phobert, tokenizer)
+		if os.path.exists(config.corpus_file) and config.use_proccessed_embedding:
+			print('load preprocessed corpus')
+			self.corpus = torch.load(config.corpus_file)
+		else:
+			print('preprocess corpus')
+			self.corpus = dataset.Corpus(config, self.device)
+			torch.save(self.corpus, config.corpus_file)
 		if config.cross_view and config.mode == 'train':
 			print('prepare unlabel data')
-			self.unlabel_corpus = dataset.Unlabel_Corpus(config, self.device, self.corpus.vocab, phobert, tokenizer)
+			self.unlabel_corpus = dataset.Unlabel_Corpus(config, self.device, self.corpus.vocab)
 
 		# model
 		if os.path.exists(config.model_file) and config.continue_train:
@@ -33,7 +34,9 @@ class DependencyParser:
 			utils_train.load_model(self, all_model, config)
 		else:
 			print('We will train model from scratch')
-			utils_train.init_model(self, config)
+			self.config.model_file = os.path.join(self.config.save_folder, 'all_model_{}.pt'.format(self.config.phobert_layer))
+
+		utils_train.init_model(self, config)
 		self.model.to(self.device)
 		if config.cross_view:
 			for model_student in self.model_students:
@@ -42,8 +45,8 @@ class DependencyParser:
 	def train_student(self, unlabel_batch):
 		# use teacher to predict
 		self.model.eval()
-		words, tags, heads, labels, masks, lengths, origin_words, chars = unlabel_batch
-		head_list, lab_list = self.model.predict_batch(words, tags, chars, lengths)
+		words, tags, heads, labels, masks, lengths, origin_words = unlabel_batch
+		head_list, lab_list = self.model.predict_batch(words, tags, lengths)
 		heads = dataset.pad([head.tolist() for head in head_list])
 		labels = dataset.pad([lab.tolist() for lab in lab_list])
 
@@ -52,7 +55,7 @@ class DependencyParser:
 		for student_model, student_optimizer, student_scheduler in zip(self.model_students, self.optimizer_students, self.scheduler_students):
 			student_model.train()
 			student_model.encoder.mode = 'student'
-			loss = self.model(words, tags, chars, heads, labels, masks)
+			loss = self.model(words, tags, heads, labels, masks)
 			student_optimizer.zero_grad()
 			loss.backward()
 			student_optimizer.step()
@@ -63,8 +66,8 @@ class DependencyParser:
 	def train_teacher(self, train_batch):
 		self.model.train()
 		self.model.encoder.mode = 'teacher'
-		words, tags, heads, labels, masks, lengths, origin_words, chars = train_batch
-		loss = self.model(words, tags, chars, heads, labels, masks)
+		words, tags, heads, labels, masks, lengths, origin_words = train_batch
+		loss = self.model(words, tags, heads, labels, masks)
 		self.optimizer.zero_grad()
 		loss.backward()
 		self.optimizer.step()
@@ -86,7 +89,7 @@ class DependencyParser:
 		for global_step in range(self.saving_step+1, self.config.max_step+1):
 			# train
 			if global_step % 2 == 1 or self.config.cross_view is False:
-				#train teacher]
+				#train teacher
 				try:
 					train_batch = next(train_batches)
 				except StopIteration:
@@ -126,11 +129,10 @@ class DependencyParser:
 				history['uas'].append(uas)
 				history['las'].append(las)
 				print(f'EVAL DEV: val loss = {val_loss:.4f}, UAS = {uas:.4f}, LAS = {las:.4f}')
-				if uas + las > self.best_uas + self.best_las:
+				if las + uas > self.best_las + self.best_uas:
 					print('save new best model')
 					self.best_las = las
 					self.best_uas = uas
-					self.best_loss = val_loss
 					self.saving_step = global_step
 					utils_train.save_model(self, self.config)
 				print('-' * 20)
@@ -142,6 +144,8 @@ class DependencyParser:
 		print('best las:', self.best_las)
 		print('best step', self.saving_step)
 		print('-'*20)
+		with open("eval_dev_{}.json".format(self.config.phobert_layer), 'a') as f:
+			json.dump(history, f)
 		self.evaluate()
 
 	def check_dev(self):
@@ -156,14 +160,16 @@ class DependencyParser:
 		with torch.no_grad():
 			for batch in dev_batches:
 				dev_batch_length += 1
-				words, tags, heads, labels, masks, lengths, origin_words, chars = batch
-				loss, head_list, lab_list = self.model.predict_batch_with_loss(words, tags, chars, heads, labels, masks, lengths)
+				words, tags, heads, labels, masks, lengths, origin_words = batch
+				loss, head_list, lab_list = self.model.predict_batch_with_loss(words, tags, heads, labels, masks, lengths)
 				stats['val_loss'] += loss.item()
 				dev_head_list += head_list
 				dev_lab_list += lab_list
 				dev_word_list += origin_words
 				dev_length_list += lengths
-
+		# trinh
+		print("phobert_layer", self.config.phobert_layer)
+		self.config.parsing_file = os.path.join(self.config.data_folder, 'parsing_{}.txt'.format(self.config.phobert_layer))
 		utils.write_conll(self.corpus.vocab, dev_word_list, dev_head_list, dev_lab_list, dev_length_list,
 											self.config.parsing_file)
 		val_loss = stats['val_loss'] / dev_batch_length
@@ -187,8 +193,8 @@ class DependencyParser:
 		with torch.no_grad():
 			for batch in test_batches:
 				test_batch_length += 1
-				words, tags, heads, labels, masks, lengths, origin_words, chars = batch
-				head_list, lab_list = self.model.predict_batch(words, tags, chars, lengths)
+				words, tags, heads, labels, masks, lengths, origin_words = batch
+				head_list, lab_list = self.model.predict_batch(words, tags, lengths)
 				gold_head_list += [head.data.numpy()[:lent] for head, lent in zip(heads.cpu(), lengths)]
 				gold_lab_list += [lab.data.numpy()[:lent] for lab, lent in zip(labels.cpu(), lengths)]
 				test_head_list += head_list
@@ -201,6 +207,8 @@ class DependencyParser:
 															 gold_lab_list, test_length_list)
 			uas, las = utils.ud_scores(self.config.test_file, self.config.parsing_file)
 			print(f'Evaluating Result: UAS = {uas:.4f}, LAS = {las:.4}')
+		with open("eval_val_{}.txt".format(self.config.phobert_layer), 'a') as f:
+			f.write("Layer {0}: UAS={1} | LAS={2}\n".format(self.config.phobert_layer, uas, las))
 
 	def annotate(self):
 		print('parsing')
@@ -211,24 +219,31 @@ class DependencyParser:
 
 
 def main():
-	# load config
-	config = Config()
-	utils.ensure_dir(config.save_folder)
-	if os.path.exists(config.config_file):
-		config = torch.load(config.config_file)
-
 	t0 = time.time()
-	parser = DependencyParser(config)
-	t1 = time.time()
-	print(f'init time = {t1 - t0:.4f}')
+	for l in range(9, 13):
+		print("=====Layer {}=====".format(l))
 
-	if config.mode == 'train':
-		parser.train()
-	elif config.mode == 'evaluate':
-		parser.evaluate()
-	else:
-		parser.annotate()
+		# load config
+		config = Config()
+		utils.ensure_dir(config.save_folder)
+		# utils.ensure_dir(config.unlabel_embedding_folder)
+		# if os.path.exists(config.config_file):
+		# 	config = torch.load(config.config_file)
+		config.phobert_layer = l
+		print("config.phobert_layer:", config.phobert_layer)
+		# Parser
+		parser = DependencyParser(config)
+		t1 = time.time()
+		print(f'init time = {t1 - t0:.4f}')
 
+		if config.mode == 'train':
+			parser.train()
+		elif config.mode == 'evaluate':
+			parser.evaluate()
+		else:
+			parser.annotate()
+		t2 = time.time()
+		print(f'train time = {t2 - t1:.4f}')
 
 if __name__ == '__main__':
 	main()
