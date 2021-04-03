@@ -125,10 +125,11 @@ class DependencyParser:
 				history['uas'].append(uas)
 				history['las'].append(las)
 				print(f'EVAL DEV: val loss = {val_loss:.4f}, UAS = {uas:.4f}, LAS = {las:.4f}')
-				if las + uas > self.best_las + self.best_uas:
+				if val_loss < self.best_loss - 0.005*self.best_loss:
 					print('save new best model')
 					self.best_las = las
 					self.best_uas = uas
+					self.best_loss = val_loss
 					self.saving_step = global_step
 					utils_train.save_model(self, self.config)
 				print('-' * 20)
