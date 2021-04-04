@@ -49,15 +49,15 @@ class Config:
 
 		#sentence level
 		self.length_ordered = False
-		self.teacher_dropout = 0.3
+		self.teacher_dropout = 0.33
 		self.student_dropout = 0.5
-		self.rnn_size = 300  # output encode = 4*rnn_size (2 biLSTM)
+		self.rnn_size = 200  # output encode = 4*rnn_size (2 biLSTM)
 		self.rnn_depth = 3
-		self.arc_mlp_size = 400
+		self.arc_mlp_size = 200
 		self.lab_mlp_size = 100
 
 		# train
-		self.max_step = 10000
+		self.max_step = 20000
 		self.batch_size = 32
 		self.phobert_batch_size = 4
 		self.print_step = 50
@@ -69,7 +69,7 @@ class Config:
 
 		# optimizer
 		# momentum for cross-view training
-		self.use_momentum = True
+		self.use_momentum = False
 		self.lr_momentum = 0.5  # base learning rate
 		self.momentum = 0.9  # momentum
 		self.grad_clip = 1.0  # maximum gradient norm during optimization
