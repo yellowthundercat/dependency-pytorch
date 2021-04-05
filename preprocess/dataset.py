@@ -200,6 +200,7 @@ class Dataset:
 				pivot_40 = index
 		self.bucket = [(0, pivot_20), (pivot_20, pivot_40), (pivot_40, len(self.lengths))]
 
+<<<<<<< HEAD
 	def get_all_embedding(self):
 		self.words = []
 		n = len(self.lengths)
@@ -244,6 +245,38 @@ class Dataset:
 		self.labels = [self.labels[i] for i in new_order]
 		self.lengths = [self.lengths[i] for i in new_order]
 		self.origin_words = [self.origin_words[i] for i in new_order]
+=======
+	def process_embedding(self, phobert, input_ids, last_index_position, device):
+		phobert.eval()
+		last_print = 0
+		batch_size = self.config.phobert_batch_size
+		n = len(input_ids)
+		batch_order = list(range(0, n, batch_size))
+		for i in batch_order:
+			if i-last_print > 500:
+				print('running embedding', i)
+				last_print = i
+			batch_input_ids = input_ids[i:i+batch_size]
+			padded_input_ids = pad_phobert(batch_input_ids).to(device)
+			# padded_input_ids.to(device)
+			with torch.no_grad():
+				origin_features = phobert(padded_input_ids)
+				# hidden layer format: [layer: 13(+1 output)][batch][ids][768]
+				features = origin_features[2][self.config.phobert_layer]
+				# attention format: [layer: 12][batch][head: 12][ids][ids]
+				# attention_heads = utils.get_attention_heads(origin_features[3], self.config.attention_requires, self.config.attention_head_tops)
+			for sentence_index in range(i, min(n, i+batch_size)):
+				# get embedding of each word
+				word_embedding = []
+				last_index_position_list = last_index_position[sentence_index]
+				for word_index in range(len(last_index_position_list) - 2):
+					start_index = last_index_position_list[word_index]
+					end_index = last_index_position_list[word_index+1]
+					word_emb = features[sentence_index-i][start_index:end_index]
+					# word_embedding.append(torch.sum(word_emb, 0).numpy() / (end_index-start_index))
+					word_embedding.append(torch.sum(word_emb, 0).cpu().data.numpy())
+				self.words.append(word_embedding)
+>>>>>>> change to gpu phobert
 
 	def order(self):
 		if self.orgin_ordered or len(self.lengths) < 2:
@@ -304,7 +337,7 @@ class Dataset:
 
 class Corpus:
 	def __init__(self, config, device):
-		phobert = AutoModel.from_pretrained("vinai/phobert-base", output_attentions=True, output_hidden_states=True)
+		phobert = AutoModel.from_pretrained("vinai/phobert-base", output_attentions=True, output_hidden_states=True).to(device)
 		# phobert = AutoModel.from_pretrained("vinai/phobert-base")
 		# phobert = AutoModel.from_pretrained("vinai/phobert-base", output_hidden_states=True)
 		tokenizer = AutoTokenizer.from_pretrained("vinai/phobert-base")
@@ -330,9 +363,25 @@ class Unlabel_Corpus:
 			if file_name.endswith('.txt') is False:
 				continue
 			input_file = os.path.join(config.unlabel_folder, file_name)
+<<<<<<< HEAD
 			unlabel_list = read_unlabel_data(input_file, tokenizer, vocab)
 			current_dataset = Dataset(config, unlabel_list, vocab, phobert, device, False)
 			self.dataset.concat(current_dataset)
+=======
+			if os.path.exists(embedding_file) and config.use_proccessed_embedding:
+				print('loading', embedding_file)
+				self.dataset.concat(torch.load(embedding_file))
+			else:
+				if phobert is None:
+					# phobert = AutoModel.from_pretrained("vinai/phobert-base")
+					phobert = AutoModel.from_pretrained("vinai/phobert-base", output_hidden_states=True).to(device)
+					tokenizer = AutoTokenizer.from_pretrained("vinai/phobert-base")
+				print('creating', embedding_file)
+				unlabel_list = read_unlabel_data(input_file, tokenizer)
+				current_dataset = Dataset(config, unlabel_list, vocab, phobert, device, False)
+				torch.save(current_dataset, embedding_file)
+				self.dataset.concat(current_dataset)
+>>>>>>> change to gpu phobert
 		self.dataset.init_bucket()
 		print('total length unlabel corpus:', len(self.dataset.lengths))
 
