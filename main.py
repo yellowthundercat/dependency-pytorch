@@ -2,6 +2,7 @@ from collections import defaultdict, Counter
 import os
 import time
 import torch
+from transformers import AutoModel, AutoTokenizer
 
 from config.default_config import Config
 from utils import utils
@@ -16,14 +17,14 @@ class DependencyParser:
 
 		# word embedding
 		print('preprocess corpus')
-		self.corpus = dataset.Corpus(config, self.device)
+		phobert = tokenizer = None
+		if config.use_phobert:
+			phobert = AutoModel.from_pretrained("vinai/phobert-base", output_hidden_states=True).to(self.device)
+			tokenizer = AutoTokenizer.from_pretrained("vinai/phobert-base")
+		self.corpus = dataset.Corpus(config, self.device, phobert, tokenizer)
 		if config.cross_view and config.mode == 'train':
 			print('prepare unlabel data')
-			if not config.use_phobert:
-				print('vocab', len(self.corpus.vocab.w2i))
-			self.unlabel_corpus = dataset.Unlabel_Corpus(config, self.device, self.corpus.vocab)
-			if not config.use_phobert:
-				print('vocab', len(self.corpus.vocab.w2i))
+			self.unlabel_corpus = dataset.Unlabel_Corpus(config, self.device, self.corpus.vocab, phobert, tokenizer)
 
 		# model
 		if os.path.exists(config.model_file):
@@ -85,7 +86,7 @@ class DependencyParser:
 		for global_step in range(self.saving_step+1, self.config.max_step+1):
 			# train
 			if global_step % 2 == 1 or self.config.cross_view is False:
-				#train teacher
+				#train teacher]
 				try:
 					train_batch = next(train_batches)
 				except StopIteration:

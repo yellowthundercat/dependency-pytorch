@@ -2,7 +2,6 @@ import os
 import numpy as np
 import torch
 from collections import defaultdict
-from transformers import AutoModel, AutoTokenizer
 
 from preprocess.sentence_level import preprocess_word, read_data, read_unlabel_data
 from preprocess.char import CHAR_DEFAULT, PAD_TOKEN, PAD_INDEX, UNK_TOKEN, UNK_INDEX, ROOT_TOKEN, ROOT_TAG, ROOT_LABEL, ROOT_INDEX
@@ -145,7 +144,7 @@ class Vocab:
 
 
 class Dataset:
-	def __init__(self, config, sentence_list, vocab, phobert, device, origin_ordered=False):
+	def __init__(self, config, sentence_list, vocab, phobert, device, origin_ordered=False, cache_embedding=False):
 		self.orgin_ordered = origin_ordered
 		self.words = []
 		self.tags = []
@@ -158,6 +157,7 @@ class Dataset:
 		last_index_position = []
 		self.bucket = []
 		self.config = config
+		self.cache_embedding = cache_embedding
 		for sentence in sentence_list:
 			self.origin_words.append(sentence.word)
 			self.lengths.append(sentence.length)
@@ -179,7 +179,14 @@ class Dataset:
 			else:
 				self.words.append([vocab.w2i[preprocess_word(word)] for word in sentence.word])
 
-		self.process_embedding(phobert, input_ids, last_index_position, device)
+		# self.process_embedding(phobert, input_ids, last_index_position, device)
+		if config.use_phobert:
+			self.phobert = phobert
+			self.input_ids = input_ids
+			self.last_index_position = last_index_position
+			self.device = device
+			if cache_embedding:
+				self.get_all_embedding()
 		self.init_bucket()
 
 	def init_bucket(self):
@@ -193,38 +200,44 @@ class Dataset:
 				pivot_40 = index
 		self.bucket = [(0, pivot_20), (pivot_20, pivot_40), (pivot_40, len(self.lengths))]
 
-	def process_embedding(self, phobert, input_ids, last_index_position, device):
-		last_print = 0
-		batch_size = self.config.phobert_batch_size
-		n = len(input_ids)
-		batch_order = list(range(0, n, batch_size))
+	def get_all_embedding(self):
+		self.words = []
+		n = len(self.lengths)
+		batch_order = list(range(0, n, self.config.batch_size))
 		for i in batch_order:
-			if i-last_print > 500:
-				print('running embedding', i)
-				last_print = i
-			batch_input_ids = input_ids[i:i+batch_size]
-			padded_input_ids = pad_phobert(batch_input_ids).to(device)
-			# padded_input_ids.to(device)
-			with torch.no_grad():
-				origin_features = phobert(padded_input_ids)
-				# hidden layer format: [layer: 13(+1 output)][batch][ids][768]
-				features = origin_features[2][self.config.phobert_layer]
-				# attention format: [layer: 12][batch][head: 12][ids][ids]
-				# attention_heads = utils.get_attention_heads(origin_features[3], self.config.attention_requires, self.config.attention_head_tops)
-			for sentence_index in range(i, min(n, i+batch_size)):
-				# get embedding of each word
-				word_embedding = []
-				last_index_position_list = last_index_position[sentence_index]
-				for word_index in range(len(last_index_position_list) - 2):
-					start_index = last_index_position_list[word_index]
-					end_index = last_index_position_list[word_index+1]
-					word_emb = features[sentence_index-i][start_index:end_index]
-					# word_embedding.append(torch.sum(word_emb, 0).numpy() / (end_index-start_index))
-					word_embedding.append(torch.sum(word_emb, 0).cpu().data.numpy().tolist())
-				self.words.append(word_embedding)
+			self.words += self.get_phobert_embedding(i, i+self.config.batch_size)
+
+	def get_phobert_embedding(self, begin_position, end_position):
+		self.phobert.eval()
+		n = len(self.input_ids)
+		batch_input_ids = self.input_ids[begin_position:end_position]
+		padded_input_ids = pad_phobert(batch_input_ids).to(self.device)
+		with torch.no_grad():
+			origin_features = self.phobert(padded_input_ids)
+			# hidden layer format: [layer: 13(+1 output)][batch][ids][768]
+			features = origin_features[2][self.config.phobert_layer]
+			# attention format: [layer: 12][batch][head: 12][ids][ids]
+			# attention_heads = utils.get_attention_heads(origin_features[3], self.config.attention_requires, self.config.attention_head_tops)
+		words = []
+		for sentence_index in range(begin_position, min(n, end_position)):
+			# get embedding of each word
+			word_embedding = []
+			last_index_position_list = self.last_index_position[sentence_index]
+			for word_index in range(len(last_index_position_list) - 2):
+				start_index = last_index_position_list[word_index]
+				end_index = last_index_position_list[word_index+1]
+				word_emb = features[sentence_index-begin_position][start_index:end_index]
+				# word_embedding.append(torch.sum(word_emb, 0).numpy() / (end_index-start_index))
+				word_embedding.append(torch.sum(word_emb, 0).cpu().data.numpy().tolist())
+			words.append(word_embedding)
+		return words
 
 	def swap_data(self, new_order):
-		self.words = [self.words[i] for i in new_order]
+		if len(self.words) == len(new_order):
+			self.words = [self.words[i] for i in new_order]
+		if self.config.use_phobert:
+			self.input_ids = [self.input_ids[i] for i in new_order]
+			self.last_index_position = [self.last_index_position[i] for i in new_order]
 		self.chars = [self.chars[i] for i in new_order]
 		self.tags = [self.tags[i] for i in new_order]
 		self.heads = [self.heads[i] for i in new_order]
@@ -253,7 +266,7 @@ class Dataset:
 
 	def batches(self, batch_size, shuffle=True, length_ordered=False):
 		"""An iterator over batches."""
-		n = len(self.words)
+		n = len(self.lengths)
 		batch_order = list(range(0, n, batch_size))
 		if shuffle:
 			self.shuffle()
@@ -262,7 +275,10 @@ class Dataset:
 			self.order()
 		for i in batch_order:
 			if self.config.use_phobert:
-				words = pad_word_embedding(self.words[i:i + batch_size], self.config)
+				if self.cache_embedding:
+					words = pad_word_embedding(self.words[i:i + batch_size], self.config)
+				else:
+					words = pad_word_embedding(self.get_phobert_embedding(i, i+batch_size), self.config)
 			else:
 				words = pad(self.words[i:i + batch_size])
 			chars = pad_char(self.chars[i:i + batch_size])
@@ -282,17 +298,12 @@ class Dataset:
 		self.lengths += other.lengths
 		self.origin_words += other.origin_words
 		self.chars += other.chars
+		self.input_ids += other.input_ids
+		self.last_index_position += other.last_index_position
 
 
 class Corpus:
-	def __init__(self, config, device):
-		# phobert = AutoModel.from_pretrained("vinai/phobert-base", output_attentions=True, output_hidden_states=True)
-		# phobert = AutoModel.from_pretrained("vinai/phobert-base")
-		phobert = tokenizer = None
-		if config.use_phobert:
-			phobert = AutoModel.from_pretrained("vinai/phobert-base", output_hidden_states=True).to(device)
-			tokenizer = AutoTokenizer.from_pretrained("vinai/phobert-base")
-
+	def __init__(self, config, device, phobert, tokenizer):
 		train_list = read_data(config.train_file, tokenizer)
 		dev_list = read_data(config.dev_file, tokenizer)
 		test_list = read_data(config.test_file, tokenizer)
@@ -301,15 +312,13 @@ class Corpus:
 			self.vocab = torch.load(config.vocab_file)
 		else:
 			self.vocab = Vocab(config, train_list + dev_list + test_list)
-		self.train = Dataset(config, train_list, self.vocab, phobert, device, False)
-		self.dev = Dataset(config, dev_list, self.vocab, phobert, device, True)
-		self.test = Dataset(config, test_list, self.vocab, phobert, device, True)
+		self.train = Dataset(config, train_list, self.vocab, phobert, device, False, cache_embedding=True)
+		self.dev = Dataset(config, dev_list, self.vocab, phobert, device, True, cache_embedding=True)
+		self.test = Dataset(config, test_list, self.vocab, phobert, device, True, cache_embedding=True)
 
 class Unlabel_Corpus:
-	def __init__(self, config, device, vocab):
+	def __init__(self, config, device, vocab, phobert, tokenizer):
 		self.config = config
-		phobert = AutoModel.from_pretrained("vinai/phobert-base", output_hidden_states=True).to(device)
-		tokenizer = AutoTokenizer.from_pretrained("vinai/phobert-base")
 		self.dataset = Dataset(config, [], vocab, phobert, device)
 		for file_name in os.listdir(config.unlabel_folder):
 			print('preprocess file:', file_name)
