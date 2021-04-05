@@ -213,7 +213,6 @@ def main():
 	# load config
 	config = Config()
 	utils.ensure_dir(config.save_folder)
-	utils.ensure_dir(config.unlabel_embedding_folder)
 	if os.path.exists(config.config_file):
 		config = torch.load(config.config_file)
 

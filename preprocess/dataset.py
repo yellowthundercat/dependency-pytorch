@@ -3,7 +3,6 @@ import numpy as np
 import torch
 from collections import defaultdict
 from transformers import AutoModel, AutoTokenizer
-import json
 
 from preprocess.sentence_level import preprocess_word, read_data, read_unlabel_data
 from preprocess.char import CHAR_DEFAULT, PAD_TOKEN, PAD_INDEX, UNK_TOKEN, UNK_INDEX, ROOT_TOKEN, ROOT_TAG, ROOT_LABEL, ROOT_INDEX
@@ -117,8 +116,6 @@ class Vocab:
 
 	def add_word(self, word, unk=False):
 		word = preprocess_word(word)
-		# for char in word:
-		# 	self.char_set.add(char)
 		if word not in self.w2i:
 			if unk:
 				self.i2w[UNK_INDEX] = UNK_TOKEN
@@ -148,7 +145,7 @@ class Vocab:
 
 
 class Dataset:
-	def __init__(self, config, sentence_list, vocab, phobert, device, origin_ordered=False, embedding_filename=None):
+	def __init__(self, config, sentence_list, vocab, phobert, device, origin_ordered=False):
 		self.orgin_ordered = origin_ordered
 		self.words = []
 		self.tags = []
@@ -182,16 +179,7 @@ class Dataset:
 			else:
 				self.words.append([vocab.w2i[preprocess_word(word)] for word in sentence.word])
 
-		if config.use_phobert:
-			if embedding_filename is not None and os.path.exists(embedding_filename) and config.use_proccessed_embedding:
-				embedding_file = open(embedding_filename)
-				print('loading file:', embedding_filename)
-				self.words = json.load(embedding_file)
-			else:
-				self.process_embedding(phobert, input_ids, last_index_position, device)
-				if embedding_filename:
-					with open(embedding_filename, 'w') as outfile:
-						json.dump(self.words, outfile)
+		self.process_embedding(phobert, input_ids, last_index_position, device)
 		self.init_bucket()
 
 	def init_bucket(self):
@@ -232,7 +220,7 @@ class Dataset:
 					end_index = last_index_position_list[word_index+1]
 					word_emb = features[sentence_index-i][start_index:end_index]
 					# word_embedding.append(torch.sum(word_emb, 0).numpy() / (end_index-start_index))
-					word_embedding.append(torch.sum(word_emb, 0).numpy().tolist())
+					word_embedding.append(torch.sum(word_emb, 0).cpu().data.numpy().tolist())
 				self.words.append(word_embedding)
 
 	def swap_data(self, new_order):
@@ -313,9 +301,9 @@ class Corpus:
 			self.vocab = torch.load(config.vocab_file)
 		else:
 			self.vocab = Vocab(config, train_list + dev_list + test_list)
-		self.train = Dataset(config, train_list, self.vocab, phobert, device, False, config.train_embedding)
-		self.dev = Dataset(config, dev_list, self.vocab, phobert, device, True, config.dev_embedding)
-		self.test = Dataset(config, test_list, self.vocab, phobert, device, True, config.test_embedding)
+		self.train = Dataset(config, train_list, self.vocab, phobert, device, False)
+		self.dev = Dataset(config, dev_list, self.vocab, phobert, device, True)
+		self.test = Dataset(config, test_list, self.vocab, phobert, device, True)
 
 class Unlabel_Corpus:
 	def __init__(self, config, device, vocab):
@@ -324,14 +312,13 @@ class Unlabel_Corpus:
 		tokenizer = AutoTokenizer.from_pretrained("vinai/phobert-base")
 		self.dataset = Dataset(config, [], vocab, phobert, device)
 		for file_name in os.listdir(config.unlabel_folder):
+			print('preprocess file:', file_name)
 			if file_name.endswith('.txt') is False:
 				continue
-			embedding_file = os.path.join(config.unlabel_embedding_folder, file_name)
 			input_file = os.path.join(config.unlabel_folder, file_name)
-			if config.create_unlabel_embedding or os.path.exists(embedding_file):
-				unlabel_list = read_unlabel_data(input_file, tokenizer, vocab)
-				current_dataset = Dataset(config, unlabel_list, vocab, phobert, device, False, embedding_file)
-				self.dataset.concat(current_dataset)
+			unlabel_list = read_unlabel_data(input_file, tokenizer, vocab)
+			current_dataset = Dataset(config, unlabel_list, vocab, phobert, device, False)
+			self.dataset.concat(current_dataset)
 		self.dataset.init_bucket()
 		print('total length unlabel corpus:', len(self.dataset.lengths))
 

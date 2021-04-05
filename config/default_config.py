@@ -8,14 +8,9 @@ class Config:
 		self.use_small_subset = True
 		self.use_pos = False
 		self.cross_view = True
-		self.use_proccessed_embedding = True
-		self.create_unlabel_embedding = True
 
 		# file location
 		self.data_folder = 'data'
-		self.train_embedding = os.path.join(self.data_folder, 'train_embedding.txt')
-		self.dev_embedding = os.path.join(self.data_folder, 'dev_embedding.txt')
-		self.test_embedding = os.path.join(self.data_folder, 'test_embedding.txt')
 		self.parsing_file = os.path.join(self.data_folder, 'parsing.txt')
 		self.annotate_file = os.path.join(self.data_folder, 'annotate.txt')
 		self.error_sample_file = os.path.join(self.data_folder, 'error_sample.txt')
@@ -23,7 +18,6 @@ class Config:
 		self.model_file = os.path.join(self.save_folder, 'all_model.pt')
 		self.config_file = os.path.join(self.save_folder, 'config.pickle')
 		self.vocab_file = os.path.join(self.save_folder, 'vocab.pickle')
-		self.unlabel_embedding_folder = os.path.join(self.data_folder, 'unlabel_embedding')
 		if self.use_small_subset:
 			self.train_file = os.path.join(self.data_folder, 'small_train.txt')
 			self.dev_file = os.path.join(self.data_folder, 'small_dev.txt')
@@ -39,7 +33,7 @@ class Config:
 		self.output_filename = 'output.txt'
 
 		# word level
-		self.use_phobert = False
+		self.use_phobert = True
 		self.use_charCNN = True
 		self.use_first_layer = False
 		self.phobert_layer = 8  # range: [0, ..., 12]
@@ -64,8 +58,8 @@ class Config:
 
 		# train
 		self.max_step = 20000
-		self.batch_size = 32
-		self.phobert_batch_size = 32
+		self.batch_size = 64
+		self.phobert_batch_size = 64
 		self.print_step = 50
 		self.eval_dev_every = 500  # how often to evaluate on the dev set
 		if self.use_small_subset:
