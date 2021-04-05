@@ -215,7 +215,7 @@ class Dataset:
 				print('running embedding', i)
 				last_print = i
 			batch_input_ids = input_ids[i:i+batch_size]
-			padded_input_ids = pad_phobert(batch_input_ids)
+			padded_input_ids = pad_phobert(batch_input_ids).to(device)
 			# padded_input_ids.to(device)
 			with torch.no_grad():
 				origin_features = phobert(padded_input_ids)
@@ -302,7 +302,7 @@ class Corpus:
 		# phobert = AutoModel.from_pretrained("vinai/phobert-base")
 		phobert = tokenizer = None
 		if config.use_phobert:
-			phobert = AutoModel.from_pretrained("vinai/phobert-base", output_hidden_states=True)
+			phobert = AutoModel.from_pretrained("vinai/phobert-base", output_hidden_states=True).to(device)
 			tokenizer = AutoTokenizer.from_pretrained("vinai/phobert-base")
 
 		train_list = read_data(config.train_file, tokenizer)
@@ -320,7 +320,7 @@ class Corpus:
 class Unlabel_Corpus:
 	def __init__(self, config, device, vocab):
 		self.config = config
-		phobert = AutoModel.from_pretrained("vinai/phobert-base", output_hidden_states=True)
+		phobert = AutoModel.from_pretrained("vinai/phobert-base", output_hidden_states=True).to(device)
 		tokenizer = AutoTokenizer.from_pretrained("vinai/phobert-base")
 		self.dataset = Dataset(config, [], vocab, phobert, device)
 		for file_name in os.listdir(config.unlabel_folder):
