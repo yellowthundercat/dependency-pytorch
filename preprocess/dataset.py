@@ -238,6 +238,7 @@ class Dataset:
 		self.bucket = [(0, pivot_20), (pivot_20, pivot_40), (pivot_40, len(self.lengths))]
 
 	def process_embedding(self, phobert, input_ids, last_index_position, device):
+		phobert.eval()
 		last_print = 0
 		batch_size = self.config.phobert_batch_size
 		n = len(input_ids)
@@ -247,7 +248,7 @@ class Dataset:
 				print('running embedding', i)
 				last_print = i
 			batch_input_ids = input_ids[i:i+batch_size]
-			padded_input_ids = pad_phobert(batch_input_ids)
+			padded_input_ids = pad_phobert(batch_input_ids).to(device)
 			# padded_input_ids.to(device)
 			with torch.no_grad():
 				origin_features = phobert(padded_input_ids)
@@ -264,7 +265,7 @@ class Dataset:
 					end_index = last_index_position_list[word_index+1]
 					word_emb = features[sentence_index-i][start_index:end_index]
 					# word_embedding.append(torch.sum(word_emb, 0).numpy() / (end_index-start_index))
-					word_embedding.append(torch.sum(word_emb, 0).numpy())
+					word_embedding.append(torch.sum(word_emb, 0).cpu().data.numpy())
 				self.words.append(word_embedding)
 
 	def order(self):
@@ -326,7 +327,7 @@ class Dataset:
 
 class Corpus:
 	def __init__(self, config, device):
-		phobert = AutoModel.from_pretrained("vinai/phobert-base", output_attentions=True, output_hidden_states=True)
+		phobert = AutoModel.from_pretrained("vinai/phobert-base", output_attentions=True, output_hidden_states=True).to(device)
 		# phobert = AutoModel.from_pretrained("vinai/phobert-base")
 		# phobert = AutoModel.from_pretrained("vinai/phobert-base", output_hidden_states=True)
 		tokenizer = AutoTokenizer.from_pretrained("vinai/phobert-base")
@@ -359,7 +360,7 @@ class Unlabel_Corpus:
 			else:
 				if phobert is None:
 					# phobert = AutoModel.from_pretrained("vinai/phobert-base")
-					phobert = AutoModel.from_pretrained("vinai/phobert-base", output_hidden_states=True)
+					phobert = AutoModel.from_pretrained("vinai/phobert-base", output_hidden_states=True).to(device)
 					tokenizer = AutoTokenizer.from_pretrained("vinai/phobert-base")
 				print('creating', embedding_file)
 				unlabel_list = read_unlabel_data(input_file, tokenizer)
