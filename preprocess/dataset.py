@@ -1,21 +1,10 @@
 import os
-import re
 import numpy as np
 import torch
-from utils import utils
 from collections import defaultdict
-from transformers import AutoModel, AutoTokenizer
 
-PAD_TOKEN = '<pad>'
-PAD_INDEX = 0
-
-UNK_TOKEN = '<unk>'
-UNK_INDEX = 1
-
-ROOT_TOKEN = '<root>'
-ROOT_TAG = 'ROOT'
-ROOT_LABEL = '_root_'
-ROOT_INDEX = 2
+from preprocess.sentence_level import preprocess_word, read_data, read_unlabel_data
+from preprocess.char import CHAR_DEFAULT, PAD_TOKEN, PAD_INDEX, UNK_TOKEN, UNK_INDEX, ROOT_TOKEN, ROOT_TAG, ROOT_LABEL, ROOT_INDEX
 
 def wrap(batch, is_float=False):
 	"""Packages the batch as a Variable containing a LongTensor."""
@@ -28,6 +17,29 @@ def wrap(batch, is_float=False):
 	return wrapping
 
 def pad(batch, pad_word=PAD_INDEX, is_float=False):
+	lens = list(map(len, batch))
+	max_len = max(lens)
+	padded_batch = []
+	for k, seq in zip(lens, batch):
+		padded = seq + (max_len - k) * [pad_word]
+		padded_batch.append(padded)
+	return wrap(padded_batch, is_float)
+
+def pad_char(batch, pad_char=PAD_INDEX, is_float=False):
+	# pad word
+	max_word_len = max(map(len, [w for sent in batch for w in sent]))
+	new_batch = []
+	for sent in batch:
+		lens = list(map(len, sent))
+		new_sent = []
+		for k, word in zip(lens, sent):
+			padded = word + (max_word_len - k) * [PAD_INDEX]
+			new_sent.append(padded)
+		new_batch.append(new_sent)
+	batch = new_batch
+
+	# pad sentence
+	pad_word = max_word_len * [PAD_INDEX]
 	lens = list(map(len, batch))
 	max_len = max(lens)
 	padded_batch = []
@@ -58,89 +70,6 @@ def pad_mask(batch):
 		padded_batch.append(padded)
 	return wrap(padded_batch, True)
 
-def _get_useful_column_ud(sentence, tokenizer):
-	# word, ud pos, vn pos, head index, dependency label
-	sentence = [[0, ROOT_TOKEN, 2, ROOT_TAG, ROOT_TAG, 5, 0, ROOT_LABEL, 8]] + sentence
-	word_list = []
-	ud_pos_list = []
-	vn_pos_list = []
-	head_index_list = []
-	dependency_label_list = []
-	for word in sentence:
-		word_list.append(word[1])
-		ud_pos_list.append(word[3])
-		vn_pos_list.append(word[4])
-		head_index_list.append(int(word[6]))
-		dependency_label_list.append(word[7])
-	return Sentence(word_list, ud_pos_list, vn_pos_list, head_index_list, dependency_label_list, tokenizer)
-
-def unlabel_sentence(word_list, tokenizer):
-	word_list = [ROOT_TOKEN] + word_list
-	lent = len(word_list)
-	return Sentence(word_list, [0]*lent, [0]*lent, [0]*lent, [0]*lent, tokenizer)
-
-def read_data(filename, tokenizer):
-	sentence_count = 0
-	input_file = open(filename, encoding='utf-8')
-	sentence_list = []
-	sentence = []
-	for line in input_file:
-		if line.startswith('#'):  # skip comment line
-			continue
-		line = line.strip()
-		if line == '' or line == '\n':
-			if len(sentence) > 1:
-				sentence_list.append(_get_useful_column_ud(sentence, tokenizer))
-				sentence = []
-				sentence_count += 1
-		else:
-			sentence.append(line.split('\t'))
-	if len(sentence) > 1:
-		sentence_list.append(_get_useful_column_ud(sentence, tokenizer))
-	utils.log('Read file:', filename)
-	utils.log('Number of sentence:', len(sentence_list))
-	return sentence_list
-
-def read_unlabel_data(file_name, tokenizer):
-	sentence_list = []
-	input_file = open(file_name, encoding='utf-8')
-	for sentence in input_file:
-		words = sentence[:-1].split(' ')
-		if 2 < len(words) < 60:
-			sentence_list.append(unlabel_sentence(words, tokenizer))
-	return sentence_list
-
-def preprocess_word(word):
-	return re.sub(r'\d', '0', word.lower())
-
-class Sentence:
-	def __init__(self, word_list, ud_pos_list, vn_pos_list, head_list, dependency_list, tokenizer):
-		cls_id = 0
-		sep_id = 2
-		input_ids = [cls_id]
-		last_index_position_list = [1]
-		# get encode index from word
-		for word in word_list:
-			token = tokenizer.encode(preprocess_word(word))
-			input_ids += token[1:(len(token)-1)]
-			last_index_position_list.append(len(input_ids))
-		input_ids.append(sep_id)
-		last_index_position_list.append(len(input_ids))
-		# get embedding of full sentence
-		# input_ids = torch.tensor([input_ids])
-		self.input_ids = input_ids
-		self.last_index_position = last_index_position_list
-
-		self.word = word_list
-		self.ud_pos = ud_pos_list
-		self.vn_pos = vn_pos_list
-		self.head_index = head_list
-		self.dependency_label = dependency_list
-		self.length = len(self.head_index)
-
-	def __str__(self):
-		return ' '.join(self.word)
-
 def default_value():
 	return UNK_INDEX
 
@@ -149,10 +78,12 @@ class Vocab:
 		self.w2i = defaultdict(default_value)
 		self.t2i = defaultdict(default_value)
 		self.l2i = defaultdict(default_value)
+		self.c2i = defaultdict(default_value)
 
 		self.i2w = defaultdict(default_value)
 		self.i2t = defaultdict(default_value)
 		self.i2l = defaultdict(default_value)
+		self.i2c = defaultdict(default_value)
 
 		self.add_word(PAD_TOKEN)
 		self.add_word(UNK_TOKEN)
@@ -166,6 +97,13 @@ class Vocab:
 		self.add_label(UNK_TOKEN)
 		self.add_label(ROOT_LABEL)
 
+		self.add_char(PAD_TOKEN)
+		self.add_char(UNK_TOKEN)
+		self.add_char(ROOT_TOKEN)
+
+		for char in CHAR_DEFAULT:
+			self.add_char(char)
+
 		for sentence in sentence_list:
 			for i in range(sentence.length):
 				self.add_word(sentence.word[i])
@@ -176,6 +114,7 @@ class Vocab:
 				self.add_label(sentence.dependency_label[i])
 
 	def add_word(self, word, unk=False):
+		word = preprocess_word(word)
 		if word not in self.w2i:
 			if unk:
 				self.i2w[UNK_INDEX] = UNK_TOKEN
@@ -197,9 +136,15 @@ class Vocab:
 			self.i2l[i] = label
 			self.l2i[label] = i
 
+	def add_char(self, char):
+		if char not in self.c2i:
+			i = len(self.i2c)
+			self.i2c[i] = char
+			self.c2i[char] = i
+
 
 class Dataset:
-	def __init__(self, config, sentence_list, vocab, phobert, device, origin_ordered=False):
+	def __init__(self, config, sentence_list, vocab, phobert, device, origin_ordered=False, cache_embedding=False):
 		self.orgin_ordered = origin_ordered
 		self.words = []
 		self.tags = []
@@ -207,10 +152,12 @@ class Dataset:
 		self.labels = []
 		self.lengths = []
 		self.origin_words = []
+		self.chars = []
 		input_ids = []
 		last_index_position = []
 		self.bucket = []
 		self.config = config
+		self.cache_embedding = cache_embedding
 		for sentence in sentence_list:
 			self.origin_words.append(sentence.word)
 			self.lengths.append(sentence.length)
@@ -221,9 +168,25 @@ class Dataset:
 			self.tags.append([vocab.t2i[tag] for tag in tag_list])
 			self.heads.append(sentence.head_index)
 			self.labels.append([vocab.l2i[label] for label in sentence.dependency_label])
-			input_ids.append(sentence.input_ids)
-			last_index_position.append(sentence.last_index_position)
-		self.process_embedding(phobert, input_ids, last_index_position, device)
+			char_list = []
+			for word in sentence.word:
+				clear_word = preprocess_word(word)
+				char_list.append([vocab.c2i[c] for c in clear_word])
+			self.chars.append(char_list)
+			if config.use_phobert:
+				input_ids.append(sentence.input_ids)
+				last_index_position.append(sentence.last_index_position)
+			else:
+				self.words.append([vocab.w2i[preprocess_word(word)] for word in sentence.word])
+
+		# self.process_embedding(phobert, input_ids, last_index_position, device)
+		if config.use_phobert:
+			self.phobert = phobert
+			self.input_ids = input_ids
+			self.last_index_position = last_index_position
+			self.device = device
+			if cache_embedding:
+				self.get_all_embedding()
 		self.init_bucket()
 
 	def init_bucket(self):
@@ -237,47 +200,57 @@ class Dataset:
 				pivot_40 = index
 		self.bucket = [(0, pivot_20), (pivot_20, pivot_40), (pivot_40, len(self.lengths))]
 
-	def process_embedding(self, phobert, input_ids, last_index_position, device):
-		last_print = 0
-		batch_size = self.config.phobert_batch_size
-		n = len(input_ids)
-		batch_order = list(range(0, n, batch_size))
+	def get_all_embedding(self):
+		self.words = []
+		n = len(self.lengths)
+		batch_order = list(range(0, n, self.config.batch_size))
 		for i in batch_order:
-			if i-last_print > 500:
-				print('running embedding', i)
-				last_print = i
-			batch_input_ids = input_ids[i:i+batch_size]
-			padded_input_ids = pad_phobert(batch_input_ids)
-			# padded_input_ids.to(device)
-			with torch.no_grad():
-				origin_features = phobert(padded_input_ids)
-				# hidden layer format: [layer: 13(+1 output)][batch][ids][768]
-				features = origin_features[2][self.config.phobert_layer]
-				# attention format: [layer: 12][batch][head: 12][ids][ids]
-				# attention_heads = utils.get_attention_heads(origin_features[3], self.config.attention_requires, self.config.attention_head_tops)
-			for sentence_index in range(i, min(n, i+batch_size)):
-				# get embedding of each word
-				word_embedding = []
-				last_index_position_list = last_index_position[sentence_index]
-				for word_index in range(len(last_index_position_list) - 2):
-					start_index = last_index_position_list[word_index]
-					end_index = last_index_position_list[word_index+1]
-					word_emb = features[sentence_index-i][start_index:end_index]
-					# word_embedding.append(torch.sum(word_emb, 0).numpy() / (end_index-start_index))
-					word_embedding.append(torch.sum(word_emb, 0).numpy())
-				self.words.append(word_embedding)
+			self.words += self.get_phobert_embedding(i, i+self.config.batch_size)
+
+	def get_phobert_embedding(self, begin_position, end_position):
+		self.phobert.eval()
+		n = len(self.input_ids)
+		batch_input_ids = self.input_ids[begin_position:end_position]
+		padded_input_ids = pad_phobert(batch_input_ids).to(self.device)
+		with torch.no_grad():
+			origin_features = self.phobert(padded_input_ids)
+			# hidden layer format: [layer: 13(+1 output)][batch][ids][768]
+			features = origin_features[2][self.config.phobert_layer]
+			# attention format: [layer: 12][batch][head: 12][ids][ids]
+			# attention_heads = utils.get_attention_heads(origin_features[3], self.config.attention_requires, self.config.attention_head_tops)
+		words = []
+		for sentence_index in range(begin_position, min(n, end_position)):
+			# get embedding of each word
+			word_embedding = []
+			last_index_position_list = self.last_index_position[sentence_index]
+			for word_index in range(len(last_index_position_list) - 2):
+				start_index = last_index_position_list[word_index]
+				end_index = last_index_position_list[word_index+1]
+				word_emb = features[sentence_index-begin_position][start_index:end_index]
+				# word_embedding.append(torch.sum(word_emb, 0).numpy() / (end_index-start_index))
+				word_embedding.append(torch.sum(word_emb, 0).cpu().data.numpy().tolist())
+			words.append(word_embedding)
+		return words
+
+	def swap_data(self, new_order):
+		if len(self.words) == len(new_order):
+			self.words = [self.words[i] for i in new_order]
+		if self.config.use_phobert:
+			self.input_ids = [self.input_ids[i] for i in new_order]
+			self.last_index_position = [self.last_index_position[i] for i in new_order]
+		self.chars = [self.chars[i] for i in new_order]
+		self.tags = [self.tags[i] for i in new_order]
+		self.heads = [self.heads[i] for i in new_order]
+		self.labels = [self.labels[i] for i in new_order]
+		self.lengths = [self.lengths[i] for i in new_order]
+		self.origin_words = [self.origin_words[i] for i in new_order]
 
 	def order(self):
 		if self.orgin_ordered or len(self.lengths) < 2:
 			return
 		old_order = zip(range(len(self.lengths)), self.lengths)
 		new_order, _ = zip(*sorted(old_order, key=lambda t: t[1]))
-		self.words = [self.words[i] for i in new_order]
-		self.tags = [self.tags[i] for i in new_order]
-		self.heads = [self.heads[i] for i in new_order]
-		self.labels = [self.labels[i] for i in new_order]
-		self.lengths = [self.lengths[i] for i in new_order]
-		self.origin_words = [self.origin_words[i] for i in new_order]
+		self.swap_data(new_order)
 
 	def shuffle(self):
 		if self.orgin_ordered:
@@ -289,16 +262,11 @@ class Dataset:
 			np.random.shuffle(temp_order)
 			new_order.append(temp_order)
 		new_order = [position for order_list in new_order for position in order_list]
-		self.words = [self.words[i] for i in new_order]
-		self.tags = [self.tags[i] for i in new_order]
-		self.heads = [self.heads[i] for i in new_order]
-		self.labels = [self.labels[i] for i in new_order]
-		self.lengths = [self.lengths[i] for i in new_order]
-		self.origin_words = [self.origin_words[i] for i in new_order]
+		self.swap_data(new_order)
 
 	def batches(self, batch_size, shuffle=True, length_ordered=False):
 		"""An iterator over batches."""
-		n = len(self.words)
+		n = len(self.lengths)
 		batch_order = list(range(0, n, batch_size))
 		if shuffle:
 			self.shuffle()
@@ -306,14 +274,21 @@ class Dataset:
 		if length_ordered:
 			self.order()
 		for i in batch_order:
-			words = pad_word_embedding(self.words[i:i + batch_size], self.config)
+			if self.config.use_phobert:
+				if self.cache_embedding:
+					words = pad_word_embedding(self.words[i:i + batch_size], self.config)
+				else:
+					words = pad_word_embedding(self.get_phobert_embedding(i, i+batch_size), self.config)
+			else:
+				words = pad(self.words[i:i + batch_size])
+			chars = pad_char(self.chars[i:i + batch_size])
 			tags = pad(self.tags[i:i + batch_size])
 			heads = pad(self.heads[i:i + batch_size])
 			labels = pad(self.labels[i:i + batch_size])
 			masks = pad_mask(self.labels[i:i + batch_size])
 			lengths = self.lengths[i:i + batch_size]
 			origin_words = self.origin_words[i:i + batch_size]
-			yield words, tags, heads, labels, masks, lengths, origin_words
+			yield words, tags, heads, labels, masks, lengths, origin_words, chars
 
 	def concat(self, other):
 		self.words += other.words
@@ -322,15 +297,13 @@ class Dataset:
 		self.labels += other.labels
 		self.lengths += other.lengths
 		self.origin_words += other.origin_words
+		self.chars += other.chars
+		self.input_ids += other.input_ids
+		self.last_index_position += other.last_index_position
 
 
 class Corpus:
-	def __init__(self, config, device):
-		# phobert = AutoModel.from_pretrained("vinai/phobert-base", output_attentions=True, output_hidden_states=True)
-		# phobert = AutoModel.from_pretrained("vinai/phobert-base")
-		phobert = AutoModel.from_pretrained("vinai/phobert-base", output_hidden_states=True)
-		tokenizer = AutoTokenizer.from_pretrained("vinai/phobert-base")
-
+	def __init__(self, config, device, phobert, tokenizer):
 		train_list = read_data(config.train_file, tokenizer)
 		dev_list = read_data(config.dev_file, tokenizer)
 		test_list = read_data(config.test_file, tokenizer)
@@ -339,33 +312,22 @@ class Corpus:
 			self.vocab = torch.load(config.vocab_file)
 		else:
 			self.vocab = Vocab(config, train_list + dev_list + test_list)
-		self.train = Dataset(config, train_list, self.vocab, phobert, device, False)
-		self.dev = Dataset(config, dev_list, self.vocab, phobert, device, True)
-		self.test = Dataset(config, test_list, self.vocab, phobert, device, True)
+		self.train = Dataset(config, train_list, self.vocab, phobert, device, False, cache_embedding=True)
+		self.dev = Dataset(config, dev_list, self.vocab, phobert, device, True, cache_embedding=True)
+		self.test = Dataset(config, test_list, self.vocab, phobert, device, True, cache_embedding=True)
 
 class Unlabel_Corpus:
-	def __init__(self, config, device, vocab):
+	def __init__(self, config, device, vocab, phobert, tokenizer):
 		self.config = config
-		phobert = tokenizer = None
 		self.dataset = Dataset(config, [], vocab, phobert, device)
 		for file_name in os.listdir(config.unlabel_folder):
+			print('preprocess file:', file_name)
 			if file_name.endswith('.txt') is False:
 				continue
-			embedding_file = os.path.join(config.unlabel_embedding_folder, file_name)
 			input_file = os.path.join(config.unlabel_folder, file_name)
-			if os.path.exists(embedding_file) and config.use_proccessed_embedding:
-				print('loading', embedding_file)
-				self.dataset.concat(torch.load(embedding_file))
-			else:
-				if phobert is None:
-					# phobert = AutoModel.from_pretrained("vinai/phobert-base")
-					phobert = AutoModel.from_pretrained("vinai/phobert-base", output_hidden_states=True)
-					tokenizer = AutoTokenizer.from_pretrained("vinai/phobert-base")
-				print('creating', embedding_file)
-				unlabel_list = read_unlabel_data(input_file, tokenizer)
-				current_dataset = Dataset(config, unlabel_list, vocab, phobert, device, False)
-				torch.save(current_dataset, embedding_file)
-				self.dataset.concat(current_dataset)
+			unlabel_list = read_unlabel_data(input_file, tokenizer, vocab)
+			current_dataset = Dataset(config, unlabel_list, vocab, phobert, device, False)
+			self.dataset.concat(current_dataset)
 		self.dataset.init_bucket()
 		print('total length unlabel corpus:', len(self.dataset.lengths))
 

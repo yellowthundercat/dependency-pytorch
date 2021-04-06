@@ -13,26 +13,27 @@ def init_model_student(main_self, config):
 		Parser(main_self.encoder, len(main_self.corpus.vocab.l2i), config, 'uni_bw', 'uni_fw', config.student_dropout),
 		Parser(main_self.encoder, len(main_self.corpus.vocab.l2i), config, 'uni_bw', 'uni_bw', config.student_dropout)
 	]
-	main_self.optimizer = optimizer.momentum(main_self.model.parameters(), config)
-	main_self.optimizer_students = [optimizer.momentum(model.parameters(), config) for model in main_self.model_students]
+	main_self.optimizer = optimizer.momentum(main_self.model.parameters(), config, config.lr_momentum)
+	main_self.optimizer_students = [optimizer.momentum(model.parameters(), config, config.student_lr_momentum) for model in main_self.model_students]
 	main_self.scheduler = optimizer.momentum_scheduler(main_self.optimizer, config)
 	main_self.scheduler_students = [optimizer.momentum_scheduler(opt_student, config) for opt_student in
 																	main_self.optimizer_students]
 
 def init_model(main_self, config):
-	main_self.encoder = RNNEncoder(config, len(main_self.corpus.vocab.t2i))
+	main_self.encoder = RNNEncoder(config, len(main_self.corpus.vocab.t2i), len(main_self.corpus.vocab.w2i), len(main_self.corpus.vocab.c2i))
 	if config.use_first_layer:
 		main_self.model = Parser(main_self.encoder, len(main_self.corpus.vocab.l2i), config, 'uni_bi', 'uni_bi', config.teacher_dropout)
 	else:
 		main_self.model = Parser(main_self.encoder, len(main_self.corpus.vocab.l2i), config, 'bi', 'bi', config.teacher_dropout)
 	main_self.saving_step = 0
 	main_self.best_las = main_self.best_uas = 0
+	main_self.best_loss = 100
 	if config.cross_view:
 		init_model_student(main_self, config)
 	else:
 		# main_self.optimizer = optimizer.adam(main_self.model.parameters(), config)
 		if config.use_momentum:
-			main_self.optimizer = optimizer.momentum(main_self.model.parameters(), config)
+			main_self.optimizer = optimizer.momentum(main_self.model.parameters(), config, config.lr_momentum)
 			main_self.scheduler = optimizer.momentum_scheduler(main_self.optimizer, config)
 		else:
 			main_self.optimizer = optimizer.adam(main_self.model.parameters(), config)
@@ -47,6 +48,7 @@ def load_model(main_self, all_model, config):
 	main_self.saving_step = all_model['step']
 	main_self.best_uas = all_model['uas']
 	main_self.best_las = all_model['las']
+	main_self.best_loss = all_model['loss']
 	if config.cross_view:
 		main_self.model_students = all_model['model_students']
 		for student_model in main_self.model_students:
@@ -62,7 +64,8 @@ def save_model(main_self, config):
 		'optimizer': main_self.optimizer,
 		'step': main_self.saving_step,
 		'uas': main_self.best_uas,
-		'las': main_self.best_las
+		'las': main_self.best_las,
+		'loss': main_self.best_loss
 	}
 	if config.use_momentum:
 		all_model['scheduler'] = main_self.scheduler
