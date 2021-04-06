@@ -5,9 +5,10 @@ class Config:
 		# general
 		self.model_name = 'test_model'
 		self.mode = 'train'  # option: 'train', 'evaluate', 'annotate'
+		self.continue_train = False
 		self.use_small_subset = True
-		self.use_pos = False
-		self.cross_view = True
+		self.use_pos = True
+		self.cross_view = False
 
 		# file location
 		self.data_folder = 'data'
@@ -62,13 +63,14 @@ class Config:
 		self.print_step = 50
 		self.eval_dev_every = 500  # how often to evaluate on the dev set
 		if self.use_small_subset:
+			self.batch_size = 8
 			self.print_step = 2
 			self.eval_dev_every = 10
 			self.max_step = 100
 
 		# optimizer
 		# momentum for cross-view training
-		self.use_momentum = False
+		self.use_momentum = False  # crossview must use
 		self.lr_momentum = 0.5  # base learning rate
 		self.student_lr_momentum = 0.2
 		self.momentum = 0.9  # momentum

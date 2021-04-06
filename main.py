@@ -27,7 +27,7 @@ class DependencyParser:
 			self.unlabel_corpus = dataset.Unlabel_Corpus(config, self.device, self.corpus.vocab, phobert, tokenizer)
 
 		# model
-		if os.path.exists(config.model_file):
+		if os.path.exists(config.model_file) and config.continue_train:
 			print('We will continue training')
 			all_model = torch.load(config.model_file)
 			utils_train.load_model(self, all_model, config)
