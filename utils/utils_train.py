@@ -33,7 +33,7 @@ def init_model(main_self, config):
 	else:
 		# main_self.optimizer = optimizer.adam(main_self.model.parameters(), config)
 		if config.use_momentum:
-			main_self.optimizer = optimizer.momentum(main_self.model.parameters(), config)
+			main_self.optimizer = optimizer.momentum(main_self.model.parameters(), config, config.lr_momentum)
 			main_self.scheduler = optimizer.momentum_scheduler(main_self.optimizer, config)
 		else:
 			main_self.optimizer = optimizer.adam(main_self.model.parameters(), config)
