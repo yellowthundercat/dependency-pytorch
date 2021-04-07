@@ -4,10 +4,11 @@ from utils import utils
 
 def _get_useful_column_ud(sentence, tokenizer):
 	# word, ud pos, vn pos, head index, dependency label
-	sentence = [[0, ROOT_TOKEN, 2, ROOT_TAG, ROOT_TAG, 5, 0, ROOT_LABEL, 8]] + sentence
+	sentence = [[0, ROOT_TOKEN, 2, ROOT_TAG, ROOT_TAG, 5, 0, ROOT_LABEL, 8, 9, ROOT_TAG]] + sentence
 	word_list = []
 	ud_pos_list = []
 	vn_pos_list = []
+	lab_pos_list = []
 	head_index_list = []
 	dependency_label_list = []
 	for word in sentence:
@@ -16,7 +17,8 @@ def _get_useful_column_ud(sentence, tokenizer):
 		vn_pos_list.append(word[4])
 		head_index_list.append(int(word[6]))
 		dependency_label_list.append(word[7])
-	return Sentence(word_list, ud_pos_list, vn_pos_list, head_index_list, dependency_label_list, tokenizer)
+		lab_pos_list.append(word[10])
+	return Sentence(word_list, ud_pos_list, vn_pos_list, lab_pos_list, head_index_list, dependency_label_list, tokenizer)
 
 def unlabel_sentence(word_list, tokenizer):
 	word_list = [ROOT_TOKEN] + word_list
@@ -60,7 +62,7 @@ def preprocess_word(word):
 	return re.sub(r'\d', '0', word.lower())
 
 class Sentence:
-	def __init__(self, word_list, ud_pos_list, vn_pos_list, head_list, dependency_list, tokenizer):
+	def __init__(self, word_list, ud_pos_list, vn_pos_list, lab_pos_list, head_list, dependency_list, tokenizer):
 		if tokenizer:
 			cls_id = 0
 			sep_id = 2
@@ -81,6 +83,7 @@ class Sentence:
 		self.word = word_list
 		self.ud_pos = ud_pos_list
 		self.vn_pos = vn_pos_list
+		self.lab_pos = lab_pos_list
 		self.head_index = head_list
 		self.dependency_label = dependency_list
 		self.length = len(self.head_index)

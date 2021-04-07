@@ -8,10 +8,13 @@ class Config:
 		self.continue_train = False
 		self.use_small_subset = True
 		self.use_pos = True
+		self.use_phobert = False
+		self.use_charCNN = True
 		self.cross_view = False
 
 		# file location
 		self.data_folder = 'data'
+		self.data_small_folder = os.path.join(self.data_folder, 'data_small')
 		self.parsing_file = os.path.join(self.data_folder, 'parsing.txt')
 		self.annotate_file = os.path.join(self.data_folder, 'annotate.txt')
 		self.error_sample_file = os.path.join(self.data_folder, 'error_sample.txt')
@@ -20,29 +23,29 @@ class Config:
 		self.config_file = os.path.join(self.save_folder, 'config.pickle')
 		self.vocab_file = os.path.join(self.save_folder, 'vocab.pickle')
 		if self.use_small_subset:
-			self.train_file = os.path.join(self.data_folder, 'small_train.txt')
-			self.dev_file = os.path.join(self.data_folder, 'small_dev.txt')
-			self.test_file = os.path.join(self.data_folder, 'small_test.txt')
+			data_folder = self.data_small_folder
 			self.unlabel_folder = os.path.join(self.data_folder, 'unlabel_data_small')
 		else:
-			self.train_file = os.path.join(self.data_folder, 'train.txt')
-			self.dev_file = os.path.join(self.data_folder, 'dev.txt')
-			self.test_file = os.path.join(self.data_folder, 'test.txt')
+			data_folder = self.data_folder
 			self.unlabel_folder = os.path.join(self.data_folder, 'unlabel_data')
+		self.train_file = os.path.join(data_folder, 'train.txt')
+		self.dev_file = os.path.join(data_folder, 'dev.txt')
+		self.test_file = os.path.join(data_folder, 'test.txt')
+		self.new_train_file = os.path.join(data_folder, 'new_train.txt')
+		self.new_dev_file = os.path.join(data_folder, 'new_dev.txt')
+		self.new_test_file = os.path.join(data_folder, 'new_test.txt')
 		# for annotation
 		self.input_filename = 'input.txt'
 		self.output_filename = 'output.txt'
 
 		# word level
-		self.use_phobert = True
-		self.use_charCNN = True
 		self.use_first_layer = False
 		self.phobert_layer = 8  # range: [0, ..., 12]
 		# attention requires format: [(a,b), (a,b)] with a is hidden layer, b is head, if b is '*' = get all
 		# range: [(0..11, 0..11 or *)]
 		# self.attention_requires = [(7, '*'), (8, '*')]
 		# self.attention_head_tops = 2
-		self.use_vn_pos = True
+		self.pos_type = 'lab'  # vn, ud, lab
 		self.word_emb_dim = 100
 		self.phobert_dim = 768
 		self.pos_emb_dim = 50
