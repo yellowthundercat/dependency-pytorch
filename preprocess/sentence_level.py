@@ -20,11 +20,6 @@ def _get_useful_column_ud(sentence, tokenizer):
 		lab_pos_list.append(word[10])
 	return Sentence(word_list, ud_pos_list, vn_pos_list, lab_pos_list, head_index_list, dependency_label_list, tokenizer)
 
-def unlabel_sentence(word_list, tokenizer):
-	word_list = [ROOT_TOKEN] + word_list
-	lent = len(word_list)
-	return Sentence(word_list, [0]*lent, [0]*lent, [0]*lent, [0]*lent, tokenizer)
-
 def read_data(filename, tokenizer):
 	sentence_count = 0
 	input_file = open(filename, encoding='utf-8')
@@ -47,15 +42,27 @@ def read_data(filename, tokenizer):
 	utils.log('Number of sentence:', len(sentence_list))
 	return sentence_list
 
+def unlabel_sentence(word_list, pos_list, tokenizer):
+	word_list = [ROOT_TOKEN] + word_list
+	pos_list = [ROOT_TAG] + pos_list
+	lent = len(word_list)
+	return Sentence(word_list, [0]*lent, [0]*lent, pos_list, [0]*lent, [0]*lent, tokenizer)
+
 def read_unlabel_data(file_name, tokenizer, vocab):
 	sentence_list = []
 	input_file = open(file_name, encoding='utf-8')
 	for sentence in input_file:
-		words = sentence[:-1].split(' ')
-		for word in words:
-			vocab.add_word(word)
-		if 2 < len(words) < 60:
-			sentence_list.append(unlabel_sentence(words, tokenizer))
+		word_list = []
+		pos_list = []
+		token_list = sentence[:-1].split(' ')
+		for token in token_list:
+			pos = token.split('/')[-1]
+			word_part = token[:len(token) - len(pos) - 1]
+			vocab.add_word(word_part)
+			word_list.append(word_part)
+			pos_list.append(pos)
+		if 2 < len(word_list) < 60:
+			sentence_list.append(unlabel_sentence(word_list, pos_list, tokenizer))
 	return sentence_list
 
 def preprocess_word(word):

@@ -8,9 +8,9 @@ class Config:
 		self.continue_train = False
 		self.use_small_subset = True
 		self.use_pos = True
-		self.use_phobert = False
+		self.use_phobert = True
 		self.use_charCNN = True
-		self.cross_view = False
+		self.cross_view = True
 
 		# file location
 		self.data_folder = 'data'
@@ -66,7 +66,7 @@ class Config:
 		self.print_step = 50
 		self.eval_dev_every = 500  # how often to evaluate on the dev set
 		if self.use_small_subset:
-			self.batch_size = 8
+			self.batch_size = 16
 			self.print_step = 2
 			self.eval_dev_every = 10
 			self.max_step = 100
