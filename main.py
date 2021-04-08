@@ -147,9 +147,8 @@ class DependencyParser:
 		print('-'*20)
 		self.evaluate()
 		if self.config.cross_view:
-			self.evaluate(0)
-			self.evaluate(1)
-			self.evaluate(2)
+			for model_index in range(5):
+				self.evaluate(model_index)
 
 	def check_dev(self):
 		stats = Counter()
