@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import torch
+import time
 from collections import defaultdict
 
 from preprocess.sentence_level import preprocess_word, read_data, read_unlabel_data
@@ -282,7 +283,11 @@ class Dataset:
 				if self.cache_embedding:
 					words = pad_word_embedding(self.words[i:i + batch_size], self.config)
 				else:
-					words = pad_word_embedding(self.get_phobert_embedding(i, i+batch_size), self.config)
+					embedding = []
+					phobert_batch_order = list(range(i, i+batch_size, self.config.phobert_batch_size))
+					for e_i in phobert_batch_order:
+						embedding += self.get_phobert_embedding(e_i, min(e_i+self.config.phobert_batch_size, i+batch_size))
+					words = pad_word_embedding(embedding, self.config)
 			else:
 				words = pad(self.words[i:i + batch_size])
 			chars = pad_char(self.chars[i:i + batch_size])
