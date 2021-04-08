@@ -85,7 +85,7 @@ class DependencyParser:
 		t0 = time.time()
 		for global_step in range(self.saving_step+1, self.config.max_step+1):
 			# train
-			if global_step % 2 == 1 or self.config.cross_view is False:
+			if global_step <= self.config.teacher_only_step or global_step % 2 == 1 or self.config.cross_view is False:
 				#train teacher]
 				try:
 					train_batch = next(train_batches)

@@ -62,6 +62,7 @@ class Config:
 
 		# train
 		self.max_step = 20000
+		self.teacher_only_step = 50
 		self.batch_size = 64
 		self.print_step = 50
 		self.eval_dev_every = 500  # how often to evaluate on the dev set
