@@ -62,6 +62,7 @@ class Config:
 
 		# train
 		self.max_step = 20000
+		self.max_waiting_step = 5000  # if not improve in this period -> stop
 		self.teacher_only_step = 50
 		self.batch_size = 64
 		self.phobert_batch_size = 32
@@ -71,7 +72,8 @@ class Config:
 			self.batch_size = 16
 			self.print_step = 2
 			self.eval_dev_every = 10
-			self.max_step = 100
+			self.max_step = 50
+			self.teacher_only_step = 0
 
 		# optimizer
 		# momentum for cross-view training

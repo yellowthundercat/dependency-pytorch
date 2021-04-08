@@ -1,4 +1,5 @@
 import re
+import time
 from preprocess.char import ROOT_TOKEN, ROOT_TAG, ROOT_LABEL
 from utils import utils
 

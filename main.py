@@ -25,6 +25,7 @@ class DependencyParser:
 		if config.cross_view and config.mode == 'train':
 			print('prepare unlabel data')
 			self.unlabel_corpus = dataset.Unlabel_Corpus(config, self.device, self.corpus.vocab, phobert, tokenizer)
+		print('total vocab', len(self.corpus.vocab.w2i))
 
 		# model
 		if os.path.exists(config.model_file) and config.continue_train:
@@ -134,6 +135,8 @@ class DependencyParser:
 					self.saving_step = global_step
 					utils_train.save_model(self, self.config)
 				print('-' * 20)
+				if global_step - self.saving_step > self.config.max_waiting_step:
+					break
 
 		# torch.save(self.config, self.config.config_file)
 		# utils.show_history_graph(history)
@@ -143,6 +146,10 @@ class DependencyParser:
 		print('best step', self.saving_step)
 		print('-'*20)
 		self.evaluate()
+		if self.config.cross_view:
+			self.evaluate(0)
+			self.evaluate(1)
+			self.evaluate(2)
 
 	def check_dev(self):
 		stats = Counter()
@@ -170,11 +177,14 @@ class DependencyParser:
 		uas, las = utils.ud_scores(self.config.dev_file, self.config.parsing_file)
 		return val_loss, uas, las
 
-	def evaluate(self):
+	def evaluate(self, model_type=-1):  # -1 is teacher
 		all_model = torch.load(self.config.model_file)
-		self.model = all_model['model']
+		if model_type == -1:
+			self.model = all_model['model']
+		else:
+			self.model = all_model['model_students'][model_type]
 		self.model.to(self.device)
-		print('evaluating')
+		print('evaluating', model_type, 'model')
 		self.model.eval()
 		test_batches = self.corpus.test.batches(self.config.batch_size, shuffle=False, length_ordered=False)
 		test_batch_length = 0
