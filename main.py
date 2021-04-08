@@ -9,6 +9,8 @@ from utils import utils
 from preprocess import dataset
 from utils.find_error_example import write_file_error_example
 from utils import utils_train
+import click
+import json
 
 class DependencyParser:
 	def __init__(self, config):
@@ -33,6 +35,7 @@ class DependencyParser:
 			utils_train.load_model(self, all_model, config)
 		else:
 			print('We will train model from scratch')
+			self.config.model_file = os.path.join(self.config.save_folder, 'all_model_wt_layer_{}.pt'.format(self.config.phobert_layer))
 			utils_train.init_model(self, config)
 		self.model.to(self.device)
 		if config.cross_view:
@@ -142,6 +145,8 @@ class DependencyParser:
 		print('best las:', self.best_las)
 		print('best step', self.saving_step)
 		print('-'*20)
+		with open("eval_dev_{}.json".format(self.config.phobert_layer), 'a') as f:
+			json.dump(history, f)
 		self.evaluate()
 
 	def check_dev(self):
@@ -201,6 +206,9 @@ class DependencyParser:
 															 gold_lab_list, test_length_list)
 			uas, las = utils.ud_scores(self.config.test_file, self.config.parsing_file)
 			print(f'Evaluating Result: UAS = {uas:.4f}, LAS = {las:.4}')
+			# trinh - save results
+			with open("eval_val_{}.txt".format(self.config.phobert_layer), 'a') as f:
+				f.write("Layer {0}: UAS={1} | LAS={2}\n".format(self.config.phobert_layer, uas, las))
 
 	def annotate(self):
 		print('parsing')
@@ -208,27 +216,44 @@ class DependencyParser:
 		sentence = input_file.read()
 		# waiting pos
 
+@click.command()
+@click.option(
+	'--start_phobert_layer', type=int, required=True,
+	default=''
+)
+@click.option(
+	'--end_phobert_layer', type=int, required=True,
+	default=''
+)
 
 
-def main():
-	# load config
-	config = Config()
-	utils.ensure_dir(config.save_folder)
-	if os.path.exists(config.config_file):
-		config = torch.load(config.config_file)
+def main(start_phobert_layer, end_phobert_layer):
+	for l in range(start_phobert_layer, end_phobert_layer + 1):
+		# load config
+		t0 = time.time()
+		config = Config()
+		utils.ensure_dir(config.save_folder)
+		if os.path.exists(config.config_file):
+			config = torch.load(config.config_file)
 
-	t0 = time.time()
-	parser = DependencyParser(config)
-	t1 = time.time()
-	print(f'init time = {t1 - t0:.4f}')
+		config.phobert_layer = l
+		print("config.phobert_layer:", config.phobert_layer)
 
-	if config.mode == 'train':
-		parser.train()
-	elif config.mode == 'evaluate':
-		parser.evaluate()
-	else:
-		parser.annotate()
+		# Init parser
+		parser = DependencyParser(config)
+		t1 = time.time()
+		print(f'Init time = {t1 - t0:.4f}')
 
+		# Run mode
+		if config.mode == 'train':
+			parser.train()
+		elif config.mode == 'evaluate':
+			parser.evaluate()
+		else:
+			parser.annotate()
+
+		t2 = time.time()
+		print(f'Train time = {t2 - t1:.4f}')
 
 if __name__ == '__main__':
 	main()
