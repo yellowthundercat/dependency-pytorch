@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import torch
+import time
 from collections import defaultdict
 
 from preprocess.sentence_level import preprocess_word, read_data, read_unlabel_data
@@ -107,10 +108,12 @@ class Vocab:
 		for sentence in sentence_list:
 			for i in range(sentence.length):
 				self.add_word(sentence.word[i])
-				if config.use_vn_pos:
+				if config.pos_type == 'vn':
 					self.add_tag(sentence.vn_pos[i])
-				else:
+				elif config.pos_type == 'ud':
 					self.add_tag(sentence.ud_pos[i])
+				else:
+					self.add_tag(sentence.lab_pos[i])
 				self.add_label(sentence.dependency_label[i])
 
 	def add_word(self, word, unk=False):
@@ -163,8 +166,10 @@ class Dataset:
 			self.lengths.append(sentence.length)
 			# self.words.append(sentence.word_embedding)
 			tag_list = sentence.vn_pos
-			if not config.use_vn_pos:
+			if config.pos_type == 'ud':
 				tag_list = sentence.ud_pos
+			if config.pos_type == 'lab':
+				tag_list = sentence.lab_pos
 			self.tags.append([vocab.t2i[tag] for tag in tag_list])
 			self.heads.append(sentence.head_index)
 			self.labels.append([vocab.l2i[label] for label in sentence.dependency_label])
@@ -278,7 +283,11 @@ class Dataset:
 				if self.cache_embedding:
 					words = pad_word_embedding(self.words[i:i + batch_size], self.config)
 				else:
-					words = pad_word_embedding(self.get_phobert_embedding(i, i+batch_size), self.config)
+					embedding = []
+					phobert_batch_order = list(range(i, i+batch_size, self.config.phobert_batch_size))
+					for e_i in phobert_batch_order:
+						embedding += self.get_phobert_embedding(e_i, min(e_i+self.config.phobert_batch_size, i+batch_size))
+					words = pad_word_embedding(embedding, self.config)
 			else:
 				words = pad(self.words[i:i + batch_size])
 			chars = pad_char(self.chars[i:i + batch_size])
@@ -304,9 +313,9 @@ class Dataset:
 
 class Corpus:
 	def __init__(self, config, device, phobert, tokenizer):
-		train_list = read_data(config.train_file, tokenizer)
-		dev_list = read_data(config.dev_file, tokenizer)
-		test_list = read_data(config.test_file, tokenizer)
+		train_list = read_data(config.new_train_file, tokenizer)
+		dev_list = read_data(config.new_dev_file, tokenizer)
+		test_list = read_data(config.new_test_file, tokenizer)
 
 		if os.path.exists(config.vocab_file):
 			self.vocab = torch.load(config.vocab_file)

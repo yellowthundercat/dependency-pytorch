@@ -25,6 +25,7 @@ class DependencyParser:
 		if config.cross_view and config.mode == 'train':
 			print('prepare unlabel data')
 			self.unlabel_corpus = dataset.Unlabel_Corpus(config, self.device, self.corpus.vocab, phobert, tokenizer)
+		print('total vocab', len(self.corpus.vocab.w2i))
 
 		# model
 		if os.path.exists(config.model_file) and config.continue_train:
@@ -85,7 +86,7 @@ class DependencyParser:
 		t0 = time.time()
 		for global_step in range(self.saving_step+1, self.config.max_step+1):
 			# train
-			if global_step % 2 == 1 or self.config.cross_view is False:
+			if global_step <= self.config.teacher_only_step or global_step % 2 == 1 or self.config.cross_view is False:
 				#train teacher]
 				try:
 					train_batch = next(train_batches)
@@ -134,6 +135,8 @@ class DependencyParser:
 					self.saving_step = global_step
 					utils_train.save_model(self, self.config)
 				print('-' * 20)
+				if global_step - self.saving_step > self.config.max_waiting_step:
+					break
 
 		# torch.save(self.config, self.config.config_file)
 		# utils.show_history_graph(history)
@@ -143,6 +146,9 @@ class DependencyParser:
 		print('best step', self.saving_step)
 		print('-'*20)
 		self.evaluate()
+		if self.config.cross_view:
+			for model_index in range(5):
+				self.evaluate(model_index)
 
 	def check_dev(self):
 		stats = Counter()
@@ -170,11 +176,14 @@ class DependencyParser:
 		uas, las = utils.ud_scores(self.config.dev_file, self.config.parsing_file)
 		return val_loss, uas, las
 
-	def evaluate(self):
+	def evaluate(self, model_type=-1):  # -1 is teacher
 		all_model = torch.load(self.config.model_file)
-		self.model = all_model['model']
+		if model_type == -1:
+			self.model = all_model['model']
+		else:
+			self.model = all_model['model_students'][model_type]
 		self.model.to(self.device)
-		print('evaluating')
+		print('evaluating', model_type, 'model')
 		self.model.eval()
 		test_batches = self.corpus.test.batches(self.config.batch_size, shuffle=False, length_ordered=False)
 		test_batch_length = 0
@@ -184,6 +193,7 @@ class DependencyParser:
 		test_lab_list = []
 		gold_head_list = []
 		gold_lab_list = []
+		pos_list = []
 		with torch.no_grad():
 			for batch in test_batches:
 				test_batch_length += 1
@@ -191,6 +201,7 @@ class DependencyParser:
 				head_list, lab_list = self.model.predict_batch(words, tags, chars, lengths)
 				gold_head_list += [head.data.numpy()[:lent] for head, lent in zip(heads.cpu(), lengths)]
 				gold_lab_list += [lab.data.numpy()[:lent] for lab, lent in zip(labels.cpu(), lengths)]
+				pos_list += [tag.data.numpy()[:lent] for tag, lent in zip(tags.cpu(), lengths)]
 				test_head_list += head_list
 				test_lab_list += lab_list
 				test_word_list += origin_words
@@ -198,7 +209,7 @@ class DependencyParser:
 			utils.write_conll(self.corpus.vocab, test_word_list, test_head_list, test_lab_list, test_length_list,
 												self.config.parsing_file)
 			write_file_error_example(self.config, self.corpus.vocab, test_word_list, test_head_list, gold_head_list, test_lab_list,
-															 gold_lab_list, test_length_list)
+															 gold_lab_list, pos_list, test_length_list)
 			uas, las = utils.ud_scores(self.config.test_file, self.config.parsing_file)
 			print(f'Evaluating Result: UAS = {uas:.4f}, LAS = {las:.4}')
 

@@ -8,10 +8,13 @@ class Config:
 		self.continue_train = False
 		self.use_small_subset = True
 		self.use_pos = True
+		self.use_phobert = True
+		self.use_charCNN = True
 		self.cross_view = False
 
 		# file location
 		self.data_folder = 'data'
+		self.data_small_folder = os.path.join(self.data_folder, 'data_small')
 		self.parsing_file = os.path.join(self.data_folder, 'parsing.txt')
 		self.annotate_file = os.path.join(self.data_folder, 'annotate.txt')
 		self.error_sample_file = os.path.join(self.data_folder, 'error_sample.txt')
@@ -20,29 +23,29 @@ class Config:
 		self.config_file = os.path.join(self.save_folder, 'config.pickle')
 		self.vocab_file = os.path.join(self.save_folder, 'vocab.pickle')
 		if self.use_small_subset:
-			self.train_file = os.path.join(self.data_folder, 'small_train.txt')
-			self.dev_file = os.path.join(self.data_folder, 'small_dev.txt')
-			self.test_file = os.path.join(self.data_folder, 'small_test.txt')
+			data_folder = self.data_small_folder
 			self.unlabel_folder = os.path.join(self.data_folder, 'unlabel_data_small')
 		else:
-			self.train_file = os.path.join(self.data_folder, 'train.txt')
-			self.dev_file = os.path.join(self.data_folder, 'dev.txt')
-			self.test_file = os.path.join(self.data_folder, 'test.txt')
+			data_folder = self.data_folder
 			self.unlabel_folder = os.path.join(self.data_folder, 'unlabel_data')
+		self.train_file = os.path.join(data_folder, 'train.txt')
+		self.dev_file = os.path.join(data_folder, 'dev.txt')
+		self.test_file = os.path.join(data_folder, 'test.txt')
+		self.new_train_file = os.path.join(data_folder, 'new_train.txt')
+		self.new_dev_file = os.path.join(data_folder, 'new_dev.txt')
+		self.new_test_file = os.path.join(data_folder, 'new_test.txt')
 		# for annotation
 		self.input_filename = 'input.txt'
 		self.output_filename = 'output.txt'
 
 		# word level
-		self.use_phobert = True
-		self.use_charCNN = True
 		self.use_first_layer = False
 		self.phobert_layer = 8  # range: [0, ..., 12]
 		# attention requires format: [(a,b), (a,b)] with a is hidden layer, b is head, if b is '*' = get all
 		# range: [(0..11, 0..11 or *)]
 		# self.attention_requires = [(7, '*'), (8, '*')]
 		# self.attention_head_tops = 2
-		self.use_vn_pos = True
+		self.pos_type = 'lab'  # vn, ud, lab
 		self.word_emb_dim = 100
 		self.phobert_dim = 768
 		self.pos_emb_dim = 50
@@ -59,14 +62,18 @@ class Config:
 
 		# train
 		self.max_step = 20000
+		self.max_waiting_step = 5000  # if not improve in this period -> stop
+		self.teacher_only_step = 50
 		self.batch_size = 64
+		self.phobert_batch_size = 32
 		self.print_step = 50
 		self.eval_dev_every = 500  # how often to evaluate on the dev set
 		if self.use_small_subset:
-			self.batch_size = 8
+			self.batch_size = 16
 			self.print_step = 2
 			self.eval_dev_every = 10
-			self.max_step = 100
+			self.max_step = 50
+			self.teacher_only_step = 0
 
 		# optimizer
 		# momentum for cross-view training
@@ -78,7 +85,6 @@ class Config:
 		self.warm_up_steps = 5000.0  # linearly ramp up the lr for this many steps
 		self.lr_decay = 0.005  # factor for gradually decaying the lr
 
-		# adam for normal
-
 		# other
 		self.seed = 2712021
+		self.error_order = False
