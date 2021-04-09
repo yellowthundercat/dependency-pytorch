@@ -10,7 +10,7 @@ class Config:
 		self.use_pos = True
 		self.use_phobert = True
 		self.use_charCNN = True
-		self.cross_view = True
+		self.cross_view = False
 
 		# file location
 		self.data_folder = 'data'
@@ -85,7 +85,6 @@ class Config:
 		self.warm_up_steps = 5000.0  # linearly ramp up the lr for this many steps
 		self.lr_decay = 0.005  # factor for gradually decaying the lr
 
-		# adam for normal
-
 		# other
 		self.seed = 2712021
+		self.error_order = False
