@@ -14,9 +14,9 @@ class RNNEncoder(nn.Module):
 		# If we're using pre-trained word embeddings, we need to copy them.
 		# if word_field.vocab.vectors is not None:
 		# 	self.word_embedding.weight = nn.Parameter(word_field.vocab.vectors, requires_grad=update_pretrained)
-		if config.use_phobert:
-			self.word_project = nn.Sequential(nn.Linear(config.phobert_dim, config.word_emb_dim), nn.ReLU())
-		else:
+		if not config.use_phobert:
+		# 	self.word_project = nn.Sequential(nn.Linear(config.phobert_dim, config.word_emb_dim), nn.ReLU())
+		# else:
 			self.word_project = nn.Embedding(word_vocab_length, config.word_emb_dim)
 
 		# POS-tag embeddings will always be trained from scratch.
@@ -42,6 +42,8 @@ class RNNEncoder(nn.Module):
 		self.rnn2_dropout_student = nn.Dropout(p=config.student_dropout)
 
 		rnn_input_dim = config.word_emb_dim
+		if self.config.use_phobert:
+			rnn_input_dim = config.phobert_dim
 		if config.use_pos:
 			rnn_input_dim += config.pos_emb_dim
 		if config.use_charCNN:
@@ -54,12 +56,11 @@ class RNNEncoder(nn.Module):
 
 	def forward_student(self, words, postags, chars):
 		if self.config.use_phobert:
-			words = self.input_word_dropout_student(words)
-
-		# Look up
-		# word_emb = self.word_embedding(words)
-		word_emb = self.word_project(words)
-		word_emb = self.word_dropout_student(word_emb)
+			word_emb = self.input_word_dropout_student(words)
+		else:
+			# Look up
+			word_emb = self.word_project(words)
+			word_emb = self.word_dropout_student(word_emb)
 
 		if self.config.use_pos:
 			pos_emb = self.pos_embedding(postags)
@@ -82,12 +83,15 @@ class RNNEncoder(nn.Module):
 	def forward(self, words, postags, chars):
 		if self.mode == 'student' and self.training:
 			return self.forward_student(words, postags, chars)
-		if self.training and self.config.use_phobert:
-			words = self.input_word_dropout(words)
+		# if self.training and self.config.use_phobert:
+		# 	words = self.input_word_dropout(words)
 
 		# Look up
 		# word_emb = self.word_embedding(words)
-		word_emb = self.word_project(words)
+		if not self.config.use_phobert:
+			word_emb = self.word_project(words)
+		else:
+			word_emb = words
 		if self.training:
 			word_emb = self.word_dropout(word_emb)
 

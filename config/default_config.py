@@ -6,7 +6,7 @@ class Config:
 		self.model_name = 'test_model'
 		self.mode = 'train'  # option: 'train', 'evaluate', 'annotate'
 		self.continue_train = False
-		self.use_small_subset = False
+		self.use_small_subset = True
 		self.use_pos = True
 		self.use_phobert = True
 		self.use_charCNN = True
@@ -47,7 +47,7 @@ class Config:
 		# self.attention_head_tops = 2
 		self.pos_type = 'vn'  # vn, ud, lab
 		self.word_emb_dim = 300
-		self.phobert_dim = 768 + 20  # + position embedding
+		self.phobert_dim = 768  # + position embedding
 		self.pos_emb_dim = 50
 		self.charCNN_dim = 0  # set later in code
 
@@ -77,7 +77,7 @@ class Config:
 
 		# optimizer
 		# momentum for cross-view training
-		self.use_momentum = False  # crossview must use
+		self.use_momentum = True  # crossview must use
 		self.lr_momentum = 0.5  # base learning rate
 		self.student_lr_momentum = 0.2
 		self.momentum = 0.9  # momentum
