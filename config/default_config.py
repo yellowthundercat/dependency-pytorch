@@ -6,7 +6,7 @@ class Config:
 		self.model_name = 'test_model'
 		self.mode = 'train'  # option: 'train', 'evaluate', 'annotate'
 		self.continue_train = False
-		self.use_small_subset = True
+		self.use_small_subset = False
 		self.use_pos = True
 		self.use_phobert = True
 		self.use_charCNN = True
@@ -47,7 +47,7 @@ class Config:
 		# self.attention_head_tops = 2
 		self.pos_type = 'vn'  # vn, ud, lab
 		self.word_emb_dim = 300
-		self.phobert_dim = 768  # + position embedding
+		self.phobert_dim = 768 + 20  # + position embedding
 		self.pos_emb_dim = 50
 		self.charCNN_dim = 0  # set later in code
 
@@ -62,7 +62,7 @@ class Config:
 
 		# train
 		self.max_step = 20000
-		self.max_waiting_step = 5000  # if not improve in this period -> stop
+		self.max_waiting_step = 15000  # if not improve in this period -> stop
 		self.teacher_only_step = 50
 		self.batch_size = 64
 		self.phobert_batch_size = 32
