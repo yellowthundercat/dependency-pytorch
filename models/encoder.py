@@ -10,14 +10,7 @@ class RNNEncoder(nn.Module):
 		self.config = config
 		self.mode = 'teacher'
 
-		# self.word_embedding = nn.Embedding(len(word_field.vocab), word_emb_dim)
-		# If we're using pre-trained word embeddings, we need to copy them.
-		# if word_field.vocab.vectors is not None:
-		# 	self.word_embedding.weight = nn.Parameter(word_field.vocab.vectors, requires_grad=update_pretrained)
-		if not config.use_phobert:
-		# 	self.word_project = nn.Sequential(nn.Linear(config.phobert_dim, config.word_emb_dim), nn.ReLU())
-		# else:
-			self.word_project = nn.Embedding(word_vocab_length, config.word_emb_dim)
+		self.word_project = nn.Embedding(word_vocab_length, config.word_emb_dim)
 
 		# POS-tag embeddings will always be trained from scratch.
 		if config.use_pos:
@@ -28,13 +21,13 @@ class RNNEncoder(nn.Module):
 			print('charCNN output size', config.charCNN_dim)
 
 		# dropout
-		self.input_word_dropout = nn.Dropout(p=config.teacher_dropout)
+		# self.input_word_dropout = nn.Dropout(p=config.teacher_dropout)
 		self.pos_dropout = nn.Dropout(p=config.teacher_dropout)
 		self.char_dropout = nn.Dropout(p=config.teacher_dropout)
 		self.word_dropout = nn.Dropout(p=config.teacher_dropout)
 		self.rnn1_dropout = nn.Dropout(p=config.teacher_dropout)
 		self.rnn2_dropout = nn.Dropout(p=config.teacher_dropout)
-		self.input_word_dropout_student = nn.Dropout(p=config.student_dropout)
+		# self.input_word_dropout_student = nn.Dropout(p=config.student_dropout)
 		self.pos_dropout_student = nn.Dropout(p=config.student_dropout)
 		self.char_dropout_student = nn.Dropout(p=config.student_dropout)
 		self.word_dropout_student = nn.Dropout(p=config.student_dropout)
@@ -43,7 +36,7 @@ class RNNEncoder(nn.Module):
 
 		rnn_input_dim = config.word_emb_dim
 		if self.config.use_phobert:
-			rnn_input_dim = config.phobert_dim
+			rnn_input_dim += config.phobert_dim
 		if config.use_pos:
 			rnn_input_dim += config.pos_emb_dim
 		if config.use_charCNN:
@@ -54,13 +47,11 @@ class RNNEncoder(nn.Module):
 		self.rnn2 = nn.LSTM(input_size=2*config.rnn_size, hidden_size=config.rnn_size, batch_first=True, bidirectional=True,
 												dropout=config.teacher_dropout, num_layers=config.rnn_depth-1)
 
-	def forward_student(self, words, postags, chars):
+	def forward_student(self, words, phobert_embs, postags, chars):
+		word_emb = self.word_project(words)
 		if self.config.use_phobert:
-			word_emb = self.input_word_dropout_student(words)
-		else:
-			# Look up
-			word_emb = self.word_project(words)
-			word_emb = self.word_dropout_student(word_emb)
+			word_emb = torch.cat([word_emb, phobert_embs], dim=2)
+		word_emb = self.word_dropout_student(word_emb)
 
 		if self.config.use_pos:
 			pos_emb = self.pos_embedding(postags)
@@ -80,18 +71,17 @@ class RNNEncoder(nn.Module):
 		rnn2_out = self.rnn2_dropout_student(rnn2_out)
 		return rnn1_out, rnn2_out, uni_fw, uni_bw
 
-	def forward(self, words, postags, chars):
+	def forward(self, words, phobert_embs, postags, chars):
 		if self.mode == 'student' and self.training:
-			return self.forward_student(words, postags, chars)
+			return self.forward_student(words, phobert_embs, postags, chars)
 		# if self.training and self.config.use_phobert:
 		# 	words = self.input_word_dropout(words)
 
 		# Look up
 		# word_emb = self.word_embedding(words)
-		if not self.config.use_phobert:
-			word_emb = self.word_project(words)
-		else:
-			word_emb = words
+		word_emb = self.word_project(words)
+		if self.config.use_phobert:
+			word_emb = torch.cat([word_emb, phobert_embs], dim=2)
 		if self.training:
 			word_emb = self.word_dropout(word_emb)
 

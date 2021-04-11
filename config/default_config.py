@@ -46,7 +46,7 @@ class Config:
 		# self.attention_requires = [(7, '*'), (8, '*')]
 		# self.attention_head_tops = 2
 		self.pos_type = 'vn'  # vn, ud, lab
-		self.word_emb_dim = 300
+		self.word_emb_dim = 100
 		self.phobert_dim = 768  # + position embedding
 		self.pos_emb_dim = 50
 		self.charCNN_dim = 0  # set later in code
