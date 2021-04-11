@@ -1,5 +1,6 @@
 from torch import nn
 import torch
+from positional_encodings import PositionalEncoding1D
 
 class BiAffine(nn.Module):
 	"""BiAffine attention layer."""
@@ -10,6 +11,7 @@ class BiAffine(nn.Module):
 		self.dep_mlp = nn.Sequential(nn.Linear(rnn_size, mlp_size), mlp_activation)
 		self.head_dropout = nn.Dropout(p=mlp_dropout)
 		self.dep_dropout = nn.Dropout(p=mlp_dropout)
+		self.positional_encoder = PositionalEncoding1D(mlp_size)
 
 		self.input_dim = mlp_size
 		self.output_dim = output_dim
@@ -17,8 +19,8 @@ class BiAffine(nn.Module):
 		nn.init.xavier_uniform_(self.U)
 
 	def forward(self, sentence_repr):
-		R_head = self.head_mlp(sentence_repr)
-		R_dep = self.dep_mlp(sentence_repr)
+		R_head = self.positional_encoder(self.head_mlp(sentence_repr))
+		R_dep = self.positional_encoder(self.dep_mlp(sentence_repr))
 		if self.training:
 			R_head = self.head_dropout(R_head)
 			R_dep = self.dep_dropout(R_dep)
