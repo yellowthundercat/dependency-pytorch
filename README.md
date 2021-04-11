@@ -4,3 +4,4 @@
 - torch (https://pytorch.org/)
 - matplotlib
 - transformers
+- positional-encodings

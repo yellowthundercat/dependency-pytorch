@@ -47,7 +47,7 @@ class Config:
 		# self.attention_head_tops = 2
 		self.pos_type = 'vn'  # vn, ud, lab
 		self.word_emb_dim = 300
-		self.phobert_dim = 768 + 1  # + position embedding
+		self.phobert_dim = 768  # + position embedding
 		self.pos_emb_dim = 50
 		self.charCNN_dim = 0  # set later in code
 
@@ -72,7 +72,7 @@ class Config:
 			self.batch_size = 16
 			self.print_step = 2
 			self.eval_dev_every = 10
-			self.max_step = 50
+			self.max_step = 100
 			self.teacher_only_step = 0
 
 		# optimizer

@@ -2,6 +2,7 @@ import torch
 from torch import nn
 from models.charCNN import ConvolutionalCharEmbedding
 from preprocess.dataset import PAD_INDEX
+from positional_encodings import PositionalEncoding1D
 
 class RNNEncoder(nn.Module):
 
@@ -18,6 +19,8 @@ class RNNEncoder(nn.Module):
 			self.word_project = nn.Sequential(nn.Linear(config.phobert_dim, config.word_emb_dim), nn.ReLU())
 		else:
 			self.word_project = nn.Embedding(word_vocab_length, config.word_emb_dim)
+
+		self.position_encoder = PositionalEncoding1D(config.word_emb_dim)
 
 		# POS-tag embeddings will always be trained from scratch.
 		if config.use_pos:
@@ -59,6 +62,7 @@ class RNNEncoder(nn.Module):
 		# Look up
 		# word_emb = self.word_embedding(words)
 		word_emb = self.word_project(words)
+		word_emb = self.position_encoder(word_emb)
 		word_emb = self.word_dropout_student(word_emb)
 
 		if self.config.use_pos:
@@ -88,6 +92,7 @@ class RNNEncoder(nn.Module):
 		# Look up
 		# word_emb = self.word_embedding(words)
 		word_emb = self.word_project(words)
+		word_emb = self.position_encoder(word_emb)
 		if self.training:
 			word_emb = self.word_dropout(word_emb)
 
