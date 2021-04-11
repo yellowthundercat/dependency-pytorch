@@ -232,8 +232,10 @@ class Dataset:
 				start_index = last_index_position_list[word_index]
 				end_index = last_index_position_list[word_index+1]
 				word_emb = features[sentence_index-begin_position][start_index:end_index]
+				word_emb = torch.sum(word_emb, 0).cpu().data.numpy().tolist()
+				word_emb.append(word_index+1)
 				# word_embedding.append(torch.sum(word_emb, 0).numpy() / (end_index-start_index))
-				word_embedding.append(torch.sum(word_emb, 0).cpu().data.numpy().tolist())
+				word_embedding.append(word_emb)
 			words.append(word_embedding)
 		return words
 

@@ -40,14 +40,14 @@ class Config:
 
 		# word level
 		self.use_first_layer = False
-		self.phobert_layer = 8  # range: [0, ..., 12]
+		self.phobert_layer = 9  # range: [0, ..., 12]
 		# attention requires format: [(a,b), (a,b)] with a is hidden layer, b is head, if b is '*' = get all
 		# range: [(0..11, 0..11 or *)]
 		# self.attention_requires = [(7, '*'), (8, '*')]
 		# self.attention_head_tops = 2
-		self.pos_type = 'lab'  # vn, ud, lab
-		self.word_emb_dim = 100
-		self.phobert_dim = 768
+		self.pos_type = 'vn'  # vn, ud, lab
+		self.word_emb_dim = 300
+		self.phobert_dim = 768 + 1  # + position embedding
 		self.pos_emb_dim = 50
 		self.charCNN_dim = 0  # set later in code
 
@@ -55,9 +55,9 @@ class Config:
 		self.length_ordered = False
 		self.teacher_dropout = 0.33
 		self.student_dropout = 0.5
-		self.rnn_size = 200  # output encode = 4*rnn_size (2 biLSTM)
+		self.rnn_size = 300  # output encode = 4*rnn_size (2 biLSTM)
 		self.rnn_depth = 3
-		self.arc_mlp_size = 200
+		self.arc_mlp_size = 300
 		self.lab_mlp_size = 100
 
 		# train
