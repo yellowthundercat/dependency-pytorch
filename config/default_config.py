@@ -6,7 +6,7 @@ class Config:
 		self.model_name = 'test_model'
 		self.mode = 'train'  # option: 'train', 'evaluate', 'annotate'
 		self.continue_train = False
-		self.use_small_subset = True
+		self.use_small_subset = False
 		self.use_pos = True
 		self.use_phobert = True
 		self.use_charCNN = True
@@ -40,14 +40,14 @@ class Config:
 
 		# word level
 		self.use_first_layer = False
-		self.phobert_layer = 8  # range: [0, ..., 12]
+		self.phobert_layer = 9  # range: [0, ..., 12]
 		# attention requires format: [(a,b), (a,b)] with a is hidden layer, b is head, if b is '*' = get all
 		# range: [(0..11, 0..11 or *)]
 		# self.attention_requires = [(7, '*'), (8, '*')]
 		# self.attention_head_tops = 2
-		self.pos_type = 'lab'  # vn, ud, lab
+		self.pos_type = 'vn'  # vn, ud, lab
 		self.word_emb_dim = 100
-		self.phobert_dim = 768
+		self.phobert_dim = 768  # + position embedding
 		self.pos_emb_dim = 50
 		self.charCNN_dim = 0  # set later in code
 
@@ -55,14 +55,14 @@ class Config:
 		self.length_ordered = False
 		self.teacher_dropout = 0.33
 		self.student_dropout = 0.5
-		self.rnn_size = 200  # output encode = 4*rnn_size (2 biLSTM)
+		self.rnn_size = 300  # output encode = 4*rnn_size (2 biLSTM)
 		self.rnn_depth = 3
-		self.arc_mlp_size = 200
+		self.arc_mlp_size = 300
 		self.lab_mlp_size = 100
 
 		# train
-		self.max_step = 20000
-		self.max_waiting_step = 5000  # if not improve in this period -> stop
+		self.max_step = 30000
+		self.max_waiting_step = 20000  # if not improve in this period -> stop
 		self.teacher_only_step = 50
 		self.batch_size = 64
 		self.phobert_batch_size = 32
@@ -72,12 +72,12 @@ class Config:
 			self.batch_size = 16
 			self.print_step = 2
 			self.eval_dev_every = 10
-			self.max_step = 50
+			self.max_step = 100
 			self.teacher_only_step = 0
 
 		# optimizer
 		# momentum for cross-view training
-		self.use_momentum = False  # crossview must use
+		self.use_momentum = True  # crossview must use
 		self.lr_momentum = 0.5  # base learning rate
 		self.student_lr_momentum = 0.2
 		self.momentum = 0.9  # momentum

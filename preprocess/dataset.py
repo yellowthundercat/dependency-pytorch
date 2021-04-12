@@ -2,6 +2,7 @@ import os
 import numpy as np
 import torch
 import time
+import math
 from collections import defaultdict
 
 from preprocess.sentence_level import preprocess_word, read_data, read_unlabel_data
@@ -150,6 +151,7 @@ class Dataset:
 	def __init__(self, config, sentence_list, vocab, phobert, device, origin_ordered=False, cache_embedding=False):
 		self.orgin_ordered = origin_ordered
 		self.words = []
+		self.phobert_embs = []
 		self.tags = []
 		self.heads = []
 		self.labels = []
@@ -181,8 +183,7 @@ class Dataset:
 			if config.use_phobert:
 				input_ids.append(sentence.input_ids)
 				last_index_position.append(sentence.last_index_position)
-			else:
-				self.words.append([vocab.w2i[preprocess_word(word)] for word in sentence.word])
+			self.words.append([vocab.w2i[preprocess_word(word)] for word in sentence.word])
 
 		# self.process_embedding(phobert, input_ids, last_index_position, device)
 		if config.use_phobert:
@@ -206,11 +207,11 @@ class Dataset:
 		self.bucket = [(0, pivot_20), (pivot_20, pivot_40), (pivot_40, len(self.lengths))]
 
 	def get_all_embedding(self):
-		self.words = []
+		self.phobert_embs = []
 		n = len(self.lengths)
 		batch_order = list(range(0, n, self.config.batch_size))
 		for i in batch_order:
-			self.words += self.get_phobert_embedding(i, i+self.config.batch_size)
+			self.phobert_embs += self.get_phobert_embedding(i, i+self.config.batch_size)
 
 	def get_phobert_embedding(self, begin_position, end_position):
 		self.phobert.eval()
@@ -232,8 +233,13 @@ class Dataset:
 				start_index = last_index_position_list[word_index]
 				end_index = last_index_position_list[word_index+1]
 				word_emb = features[sentence_index-begin_position][start_index:end_index]
+				word_emb = torch.sum(word_emb, 0).cpu().data.numpy().tolist()
+				# d_model = 20
+				# for i in range(0, d_model, 2):
+				# 	word_emb.append(math.sin(word_index / (10000 ** ((2 * i)/d_model))))
+				# 	word_emb.append(math.cos(word_index / (10000 ** ((2 * (i + 1))/d_model))))
 				# word_embedding.append(torch.sum(word_emb, 0).numpy() / (end_index-start_index))
-				word_embedding.append(torch.sum(word_emb, 0).cpu().data.numpy().tolist())
+				word_embedding.append(word_emb)
 			words.append(word_embedding)
 		return words
 
@@ -242,6 +248,7 @@ class Dataset:
 			self.words = [self.words[i] for i in new_order]
 		if self.config.use_phobert:
 			self.input_ids = [self.input_ids[i] for i in new_order]
+			self.phobert_embs = [self.phobert_embs[i] for i in new_order]
 			self.last_index_position = [self.last_index_position[i] for i in new_order]
 		self.chars = [self.chars[i] for i in new_order]
 		self.tags = [self.tags[i] for i in new_order]
@@ -278,18 +285,18 @@ class Dataset:
 			np.random.shuffle(batch_order)
 		if length_ordered:
 			self.order()
+		phobert_embs = []
 		for i in batch_order:
 			if self.config.use_phobert:
 				if self.cache_embedding:
-					words = pad_word_embedding(self.words[i:i + batch_size], self.config)
+					phobert_embs = pad_word_embedding(self.phobert_embs[i:i + batch_size], self.config)
 				else:
 					embedding = []
 					phobert_batch_order = list(range(i, i+batch_size, self.config.phobert_batch_size))
 					for e_i in phobert_batch_order:
 						embedding += self.get_phobert_embedding(e_i, min(e_i+self.config.phobert_batch_size, i+batch_size))
-					words = pad_word_embedding(embedding, self.config)
-			else:
-				words = pad(self.words[i:i + batch_size])
+					phobert_embs = pad_word_embedding(embedding, self.config)
+			words = pad(self.words[i:i + batch_size])
 			chars = pad_char(self.chars[i:i + batch_size])
 			tags = pad(self.tags[i:i + batch_size])
 			heads = pad(self.heads[i:i + batch_size])
@@ -297,7 +304,7 @@ class Dataset:
 			masks = pad_mask(self.labels[i:i + batch_size])
 			lengths = self.lengths[i:i + batch_size]
 			origin_words = self.origin_words[i:i + batch_size]
-			yield words, tags, heads, labels, masks, lengths, origin_words, chars
+			yield words, phobert_embs, tags, heads, labels, masks, lengths, origin_words, chars
 
 	def concat(self, other):
 		self.words += other.words
