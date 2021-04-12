@@ -6,7 +6,7 @@ class Config:
 		self.model_name = 'test_model'
 		self.mode = 'train'  # option: 'train', 'evaluate', 'annotate'
 		self.continue_train = False
-		self.use_small_subset = True
+		self.use_small_subset = False
 		self.use_pos = True
 		self.use_phobert = True
 		self.use_charCNN = True
@@ -61,8 +61,8 @@ class Config:
 		self.lab_mlp_size = 100
 
 		# train
-		self.max_step = 20000
-		self.max_waiting_step = 15000  # if not improve in this period -> stop
+		self.max_step = 30000
+		self.max_waiting_step = 20000  # if not improve in this period -> stop
 		self.teacher_only_step = 50
 		self.batch_size = 64
 		self.phobert_batch_size = 32

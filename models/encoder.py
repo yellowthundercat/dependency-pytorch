@@ -21,13 +21,11 @@ class RNNEncoder(nn.Module):
 			print('charCNN output size', config.charCNN_dim)
 
 		# dropout
-		# self.input_word_dropout = nn.Dropout(p=config.teacher_dropout)
 		self.pos_dropout = nn.Dropout(p=config.teacher_dropout)
 		self.char_dropout = nn.Dropout(p=config.teacher_dropout)
 		self.word_dropout = nn.Dropout(p=config.teacher_dropout)
 		self.rnn1_dropout = nn.Dropout(p=config.teacher_dropout)
 		self.rnn2_dropout = nn.Dropout(p=config.teacher_dropout)
-		# self.input_word_dropout_student = nn.Dropout(p=config.student_dropout)
 		self.pos_dropout_student = nn.Dropout(p=config.student_dropout)
 		self.char_dropout_student = nn.Dropout(p=config.student_dropout)
 		self.word_dropout_student = nn.Dropout(p=config.student_dropout)
@@ -47,7 +45,7 @@ class RNNEncoder(nn.Module):
 		self.rnn2 = nn.LSTM(input_size=2*config.rnn_size, hidden_size=config.rnn_size, batch_first=True, bidirectional=True,
 												dropout=config.teacher_dropout, num_layers=config.rnn_depth-1)
 
-	def forward_student(self, words, phobert_embs, postags, chars):
+	def forward_student_training(self, words, phobert_embs, postags, chars):
 		word_emb = self.word_project(words)
 		if self.config.use_phobert:
 			word_emb = torch.cat([word_emb, phobert_embs], dim=2)
@@ -73,12 +71,9 @@ class RNNEncoder(nn.Module):
 
 	def forward(self, words, phobert_embs, postags, chars):
 		if self.mode == 'student' and self.training:
-			return self.forward_student(words, phobert_embs, postags, chars)
-		# if self.training and self.config.use_phobert:
-		# 	words = self.input_word_dropout(words)
+			return self.forward_student_training(words, phobert_embs, postags, chars)
 
 		# Look up
-		# word_emb = self.word_embedding(words)
 		word_emb = self.word_project(words)
 		if self.config.use_phobert:
 			word_emb = torch.cat([word_emb, phobert_embs], dim=2)
