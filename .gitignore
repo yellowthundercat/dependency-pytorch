@@ -147,6 +147,7 @@ data/test_embedding.txt
 data/parsing.txt
 
 data/error_sample.txt
+data/error_analyze
 
 *.pickle
 

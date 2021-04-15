@@ -6,7 +6,7 @@ class Config:
 		self.model_name = 'test_model'
 		self.mode = 'train'  # option: 'train', 'evaluate', 'annotate'
 		self.continue_train = False
-		self.use_small_subset = False
+		self.use_small_subset = True
 		self.use_pos = True
 		self.use_phobert = True
 		self.use_charCNN = True
@@ -23,17 +23,14 @@ class Config:
 		self.config_file = os.path.join(self.save_folder, 'config.pickle')
 		self.vocab_file = os.path.join(self.save_folder, 'vocab.pickle')
 		if self.use_small_subset:
-			data_folder = self.data_small_folder
+			train_data_folder = self.data_small_folder
 			self.unlabel_folder = os.path.join(self.data_folder, 'unlabel_data_small')
 		else:
-			data_folder = self.data_folder
+			train_data_folder = os.path.join(self.data_folder, 'vndt')
 			self.unlabel_folder = os.path.join(self.data_folder, 'unlabel_data')
-		self.train_file = os.path.join(data_folder, 'train.txt')
-		self.dev_file = os.path.join(data_folder, 'dev.txt')
-		self.test_file = os.path.join(data_folder, 'test.txt')
-		self.new_train_file = os.path.join(data_folder, 'new_train.txt')
-		self.new_dev_file = os.path.join(data_folder, 'new_dev.txt')
-		self.new_test_file = os.path.join(data_folder, 'new_test.txt')
+		self.train_file = os.path.join(train_data_folder, 'train.txt')
+		self.dev_file = os.path.join(train_data_folder, 'dev.txt')
+		self.test_file = os.path.join(train_data_folder, 'test.txt')
 		# for annotation
 		self.input_filename = 'input.txt'
 		self.output_filename = 'output.txt'
@@ -86,5 +83,5 @@ class Config:
 		self.lr_decay = 0.005  # factor for gradually decaying the lr
 
 		# other
-		self.seed = 2712021
+		self.seed = 26052020
 		self.error_order = False

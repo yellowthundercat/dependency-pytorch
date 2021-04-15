@@ -18,7 +18,8 @@ def _get_useful_column_ud(sentence, tokenizer):
 		vn_pos_list.append(word[4])
 		head_index_list.append(int(word[6]))
 		dependency_label_list.append(word[7])
-		lab_pos_list.append(word[10])
+		# lab_pos_list.append(word[10])
+		lab_pos_list.append('-')
 	return Sentence(word_list, ud_pos_list, vn_pos_list, lab_pos_list, head_index_list, dependency_label_list, tokenizer)
 
 def read_data(filename, tokenizer):
