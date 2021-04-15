@@ -21,7 +21,7 @@ ROOT_TAG = 'ROOT'
 ROOT_LABEL = '_root_'
 ROOT_INDEX = 2
 
-# -1 contain number, 0 lowercase, 1 uppercase
+# 1 contain number, 2 lowercase, 3 uppercase
 def word_format(word, position):
 	# upper is normal at start of sentence
 	if word[0].isupper() and position > 1:

@@ -67,8 +67,10 @@ def read_unlabel_data(file_name, tokenizer, vocab):
 			sentence_list.append(unlabel_sentence(word_list, pos_list, tokenizer))
 	return sentence_list
 
-def preprocess_word(word):
-	return re.sub(r'\d', '0', word.lower())
+def preprocess_word(word, is_lower=True):
+	if is_lower:
+		return re.sub(r'\d', '0', word.lower())
+	return re.sub(r'\d', '0', word)
 
 class Sentence:
 	def __init__(self, word_list, ud_pos_list, vn_pos_list, lab_pos_list, head_list, dependency_list, tokenizer):

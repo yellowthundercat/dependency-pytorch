@@ -178,7 +178,9 @@ class Dataset:
 			self.labels.append([vocab.l2i[label] for label in sentence.dependency_label])
 			char_list = []
 			for word in sentence.word:
-				clear_word = preprocess_word(word)
+				clear_word = preprocess_word(word, False)
+				for c in clear_word:
+					vocab.add_char(c)
 				char_list.append([vocab.c2i[c] for c in clear_word])
 			self.chars.append(char_list)
 			if config.use_phobert:
@@ -235,7 +237,7 @@ class Dataset:
 				end_index = last_index_position_list[word_index+1]
 				word_emb = features[sentence_index-begin_position][start_index:end_index]
 				word_emb = torch.sum(word_emb, 0).cpu().data.numpy().tolist()
-				word_emb.append(word_format(self.origin_words[sentence_index][word_index], word_index))
+				# word_emb.append(word_format(self.origin_words[sentence_index][word_index], word_index))
 				# d_model = 20
 				# for i in range(0, d_model, 2):
 				# 	word_emb.append(math.sin(word_index / (10000 ** ((2 * i)/d_model))))
