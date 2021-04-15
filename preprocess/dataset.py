@@ -6,7 +6,8 @@ import math
 from collections import defaultdict
 
 from preprocess.sentence_level import preprocess_word, read_data, read_unlabel_data
-from preprocess.char import CHAR_DEFAULT, PAD_TOKEN, PAD_INDEX, UNK_TOKEN, UNK_INDEX, ROOT_TOKEN, ROOT_TAG, ROOT_LABEL, ROOT_INDEX
+from preprocess.char import CHAR_DEFAULT, PAD_TOKEN, PAD_INDEX, UNK_TOKEN, UNK_INDEX, ROOT_TOKEN, \
+	ROOT_TAG, ROOT_LABEL, ROOT_INDEX, word_format
 
 def wrap(batch, is_float=False):
 	"""Packages the batch as a Variable containing a LongTensor."""
@@ -234,6 +235,7 @@ class Dataset:
 				end_index = last_index_position_list[word_index+1]
 				word_emb = features[sentence_index-begin_position][start_index:end_index]
 				word_emb = torch.sum(word_emb, 0).cpu().data.numpy().tolist()
+				word_emb.append(word_format(self.origin_words[sentence_index][word_index], word_index))
 				# d_model = 20
 				# for i in range(0, d_model, 2):
 				# 	word_emb.append(math.sin(word_index / (10000 ** ((2 * i)/d_model))))
