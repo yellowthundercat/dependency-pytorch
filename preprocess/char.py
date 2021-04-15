@@ -24,9 +24,9 @@ ROOT_INDEX = 2
 # 1 contain number, 2 lowercase, 3 uppercase
 def word_format(word, position):
 	# upper is normal at start of sentence
-	if word[0].isupper() and position > 1:
-		return 1
+	if word[0].isupper() and position > 1 and word != 'LBKT' and word != 'RBKT':
+		return 3
 	for char in word:
 		if char.isdigit():
-			return -1
-	return 0
+			return 1
+	return 2

@@ -159,6 +159,7 @@ class Dataset:
 		self.lengths = []
 		self.origin_words = []
 		self.chars = []
+		self.word_formats = []
 		input_ids = []
 		last_index_position = []
 		self.bucket = []
@@ -177,12 +178,15 @@ class Dataset:
 			self.heads.append(sentence.head_index)
 			self.labels.append([vocab.l2i[label] for label in sentence.dependency_label])
 			char_list = []
-			for word in sentence.word:
-				clear_word = preprocess_word(word, False)
-				for c in clear_word:
-					vocab.add_char(c)
+			word_format_list = []
+			for word_index, word in enumerate(sentence.word):
+				clear_word = preprocess_word(word)
+				word_format_list.append(word_format(word, word_index))
+				# for c in clear_word:
+				# 	vocab.add_char(c)
 				char_list.append([vocab.c2i[c] for c in clear_word])
 			self.chars.append(char_list)
+			self.word_formats.append(word_format_list)
 			if config.use_phobert:
 				input_ids.append(sentence.input_ids)
 				last_index_position.append(sentence.last_index_position)
@@ -255,6 +259,7 @@ class Dataset:
 			self.phobert_embs = [self.phobert_embs[i] for i in new_order]
 			self.last_index_position = [self.last_index_position[i] for i in new_order]
 		self.chars = [self.chars[i] for i in new_order]
+		self.word_formats = [self.word_formats[i] for i in new_order]
 		self.tags = [self.tags[i] for i in new_order]
 		self.heads = [self.heads[i] for i in new_order]
 		self.labels = [self.labels[i] for i in new_order]
@@ -302,17 +307,19 @@ class Dataset:
 					phobert_embs = pad_word_embedding(embedding, self.config)
 			words = pad(self.words[i:i + batch_size])
 			chars = pad_char(self.chars[i:i + batch_size])
+			word_formats = pad(self.word_formats[i:i + batch_size])
 			tags = pad(self.tags[i:i + batch_size])
 			heads = pad(self.heads[i:i + batch_size])
 			labels = pad(self.labels[i:i + batch_size])
 			masks = pad_mask(self.labels[i:i + batch_size])
 			lengths = self.lengths[i:i + batch_size]
 			origin_words = self.origin_words[i:i + batch_size]
-			yield words, phobert_embs, tags, heads, labels, masks, lengths, origin_words, chars
+			yield words, phobert_embs, tags, heads, labels, masks, lengths, origin_words, chars, word_formats
 
 	def concat(self, other):
 		self.words += other.words
 		self.tags += other.tags
+		self.word_formats += other.word_formats
 		self.heads += other.heads
 		self.labels += other.labels
 		self.lengths += other.lengths
@@ -320,6 +327,7 @@ class Dataset:
 		self.chars += other.chars
 		self.input_ids += other.input_ids
 		self.last_index_position += other.last_index_position
+		self.phobert_embs += other.phobert_embs
 
 
 class Corpus:

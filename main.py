@@ -44,8 +44,8 @@ class DependencyParser:
 	def train_student(self, unlabel_batch):
 		# use teacher to predict
 		self.model.eval()
-		words, phobert_emds, tags, heads, labels, masks, lengths, origin_words, chars = unlabel_batch
-		head_list, lab_list = self.model.predict_batch(words, phobert_emds, tags, chars, lengths)
+		words, phobert_emds, tags, heads, labels, masks, lengths, origin_words, chars, word_formats = unlabel_batch
+		head_list, lab_list = self.model.predict_batch(words, phobert_emds, word_formats, tags, chars, lengths)
 		heads = dataset.pad([head.tolist() for head in head_list])
 		labels = dataset.pad([lab.tolist() for lab in lab_list])
 
@@ -54,7 +54,7 @@ class DependencyParser:
 		for student_model, student_optimizer, student_scheduler in zip(self.model_students, self.optimizer_students, self.scheduler_students):
 			student_model.train()
 			student_model.encoder.mode = 'student'
-			loss = self.model(words, phobert_emds, tags, chars, heads, labels, masks)
+			loss = self.model(words, phobert_emds, word_formats, tags, chars, heads, labels, masks)
 			student_optimizer.zero_grad()
 			loss.backward()
 			student_optimizer.step()
@@ -65,8 +65,8 @@ class DependencyParser:
 	def train_teacher(self, train_batch):
 		self.model.train()
 		self.model.encoder.mode = 'teacher'
-		words, phobert_embs, tags, heads, labels, masks, lengths, origin_words, chars = train_batch
-		loss = self.model(words, phobert_embs, tags, chars, heads, labels, masks)
+		words, phobert_embs, tags, heads, labels, masks, lengths, origin_words, chars, word_formats = train_batch
+		loss = self.model(words, phobert_embs, word_formats, tags, chars, heads, labels, masks)
 		self.optimizer.zero_grad()
 		loss.backward()
 		self.optimizer.step()
@@ -163,8 +163,8 @@ class DependencyParser:
 		with torch.no_grad():
 			for batch in dev_batches:
 				dev_batch_length += 1
-				words, phobert_embs, tags, heads, labels, masks, lengths, origin_words, chars = batch
-				loss, head_list, lab_list = self.model.predict_batch_with_loss(words, phobert_embs, tags, chars, heads, labels, masks, lengths)
+				words, phobert_embs, tags, heads, labels, masks, lengths, origin_words, chars, word_formats = batch
+				loss, head_list, lab_list = self.model.predict_batch_with_loss(words, phobert_embs, word_formats, tags, chars, heads, labels, masks, lengths)
 				stats['val_loss'] += loss.item()
 				dev_head_list += head_list
 				dev_lab_list += lab_list
@@ -198,8 +198,8 @@ class DependencyParser:
 		with torch.no_grad():
 			for batch in test_batches:
 				test_batch_length += 1
-				words, phobert_embs, tags, heads, labels, masks, lengths, origin_words, chars = batch
-				head_list, lab_list = self.model.predict_batch(words, phobert_embs, tags, chars, lengths)
+				words, phobert_embs, tags, heads, labels, masks, lengths, origin_words, chars, word_formats = batch
+				head_list, lab_list = self.model.predict_batch(words, phobert_embs, word_formats, tags, chars, lengths)
 				gold_head_list += [head.data.numpy()[:lent] for head, lent in zip(heads.cpu(), lengths)]
 				gold_lab_list += [lab.data.numpy()[:lent] for lab, lent in zip(labels.cpu(), lengths)]
 				pos_list += [tag.data.numpy()[:lent] for tag, lent in zip(tags.cpu(), lengths)]

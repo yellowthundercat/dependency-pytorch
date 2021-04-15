@@ -20,7 +20,8 @@ def init_model_student(main_self, config):
 																	main_self.optimizer_students]
 
 def init_model(main_self, config):
-	main_self.encoder = RNNEncoder(config, len(main_self.corpus.vocab.t2i), len(main_self.corpus.vocab.w2i), len(main_self.corpus.vocab.c2i))
+	main_self.encoder = RNNEncoder(config, len(main_self.corpus.vocab.t2i), len(main_self.corpus.vocab.w2i),
+																 len(main_self.corpus.vocab.c2i), config.max_word_format)
 	if config.use_first_layer:
 		main_self.model = Parser(main_self.encoder, len(main_self.corpus.vocab.l2i), config, 'uni_bi', 'uni_bi', config.teacher_dropout)
 	else:

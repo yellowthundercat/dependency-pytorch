@@ -13,7 +13,8 @@ def _get_useful_column_ud(sentence, tokenizer):
 	head_index_list = []
 	dependency_label_list = []
 	for word in sentence:
-		word_list.append(word[1])
+		current_word = word[1]
+		word_list.append(current_word)
 		ud_pos_list.append(word[3])
 		vn_pos_list.append(word[4])
 		head_index_list.append(int(word[6]))

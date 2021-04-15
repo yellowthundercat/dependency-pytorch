@@ -37,6 +37,8 @@ class Config:
 
 		# word level
 		self.use_first_layer = False
+		self.use_word_format = True
+		self.max_word_format = 4
 		self.phobert_layer = 9  # range: [0, ..., 12]
 		# attention requires format: [(a,b), (a,b)] with a is hidden layer, b is head, if b is '*' = get all
 		# range: [(0..11, 0..11 or *)]
@@ -46,6 +48,7 @@ class Config:
 		self.word_emb_dim = 100
 		self.phobert_dim = 768
 		self.pos_emb_dim = 50
+		self.word_format_dim = 30
 		self.charCNN_dim = 0  # set later in code
 
 		#sentence level
@@ -58,7 +61,7 @@ class Config:
 		self.lab_mlp_size = 100
 
 		# train
-		self.max_step = 30000
+		self.max_step = 35000
 		self.max_waiting_step = 20000  # if not improve in this period -> stop
 		self.teacher_only_step = 50
 		self.batch_size = 64

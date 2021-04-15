@@ -47,13 +47,13 @@ class Parser(nn.Module):
 		dep_repr = self.get_repr_from_mode(rnn1_out, rnn2_out, uni_fw, uni_bw, self.dep_repr_type)
 		return head_repr, dep_repr
 
-	def forward(self, words, phobert_embs, postags, chars, heads, labels, masks):
+	def forward(self, words, phobert_embs, word_formats, postags, chars, heads, labels, masks):
 
 		# if self.training:
 		# 	# If we are training, apply the word/tag dropout to the word and tag tensors.
 		# 	words, postags = self.word_tag_dropout(words, postags, self.config.drop_out_rate)
 
-		rnn1_out, rnn2_out, uni_fw, uni_bw = self.encoder(words, phobert_embs, postags, chars)
+		rnn1_out, rnn2_out, uni_fw, uni_bw = self.encoder(words, phobert_embs, word_formats, postags, chars)
 		head_repr, dep_repr = self.get_encoder_repr(rnn1_out, rnn2_out, uni_fw, uni_bw)
 		arc_score, lab_score = self.scorer(head_repr, dep_repr)
 
@@ -111,14 +111,14 @@ class Parser(nn.Module):
 			lab_list.append(labels)
 		return head_list, lab_list
 
-	def predict_batch(self, words, phobert_embs, postags, chars, lengths):
-		rnn1_out, rnn2_out, uni_fw, uni_bw = self.encoder(words, phobert_embs, postags, chars)
+	def predict_batch(self, words, phobert_embs, word_formats, postags, chars, lengths):
+		rnn1_out, rnn2_out, uni_fw, uni_bw = self.encoder(words, phobert_embs, word_formats, postags, chars)
 		head_repr, dep_repr = self.get_encoder_repr(rnn1_out, rnn2_out, uni_fw, uni_bw)
 		arc_score, lab_score = self.scorer(head_repr, dep_repr)
 		return self.parse_from_score(arc_score, lab_score, lengths)
 
-	def predict_batch_with_loss(self, words, phobert_embs, postags, chars, heads, labels, pad_masks, lengths):
-		rnn1_out, rnn2_out, uni_fw, uni_bw = self.encoder(words, phobert_embs, postags, chars)
+	def predict_batch_with_loss(self, words, phobert_embs, word_formats, postags, chars, heads, labels, pad_masks, lengths):
+		rnn1_out, rnn2_out, uni_fw, uni_bw = self.encoder(words, phobert_embs, word_formats, postags, chars)
 		head_repr, dep_repr = self.get_encoder_repr(rnn1_out, rnn2_out, uni_fw, uni_bw)
 		arc_score, lab_score = self.scorer(head_repr, dep_repr)
 		loss = self.compute_loss(arc_score, lab_score, heads, labels, pad_masks)

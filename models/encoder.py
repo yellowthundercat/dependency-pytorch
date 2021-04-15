@@ -5,12 +5,14 @@ from preprocess.dataset import PAD_INDEX
 
 class RNNEncoder(nn.Module):
 
-	def __init__(self, config, pos_vocab_length, word_vocab_length, char_vocab_length):
+	def __init__(self, config, pos_vocab_length, word_vocab_length, char_vocab_length, word_format_vocab_length):
 		super().__init__()
 		self.config = config
 		self.mode = 'teacher'
 
 		self.word_project = nn.Embedding(word_vocab_length, config.word_emb_dim)
+		if self.config.use_word_format:
+			self.word_formatter = nn.Embedding(word_format_vocab_length, config.word_format_dim)
 
 		# POS-tag embeddings will always be trained from scratch.
 		if config.use_pos:
@@ -33,6 +35,8 @@ class RNNEncoder(nn.Module):
 		self.rnn2_dropout_student = nn.Dropout(p=config.student_dropout)
 
 		rnn_input_dim = config.word_emb_dim
+		if self.config.use_word_format:
+			rnn_input_dim += config.word_format_dim
 		if self.config.use_phobert:
 			rnn_input_dim += config.phobert_dim
 		if config.use_pos:
@@ -45,8 +49,11 @@ class RNNEncoder(nn.Module):
 		self.rnn2 = nn.LSTM(input_size=2*config.rnn_size, hidden_size=config.rnn_size, batch_first=True, bidirectional=True,
 												dropout=config.teacher_dropout, num_layers=config.rnn_depth-1)
 
-	def forward_student_training(self, words, phobert_embs, postags, chars):
+	def forward_student_training(self, words, phobert_embs, word_formats, postags, chars):
 		word_emb = self.word_project(words)
+		if self.config.use_word_format:
+			word_format_emb = self.word_formatter(word_formats)
+			word_emb = torch.cat([word_emb, word_format_emb], dim=2)
 		if self.config.use_phobert:
 			word_emb = torch.cat([word_emb, phobert_embs], dim=2)
 		word_emb = self.word_dropout_student(word_emb)
@@ -69,12 +76,15 @@ class RNNEncoder(nn.Module):
 		rnn2_out = self.rnn2_dropout_student(rnn2_out)
 		return rnn1_out, rnn2_out, uni_fw, uni_bw
 
-	def forward(self, words, phobert_embs, postags, chars):
+	def forward(self, words, phobert_embs, word_formats, postags, chars):
 		if self.mode == 'student' and self.training:
-			return self.forward_student_training(words, phobert_embs, postags, chars)
+			return self.forward_student_training(words, phobert_embs, word_formats, postags, chars)
 
 		# Look up
 		word_emb = self.word_project(words)
+		if self.config.use_word_format:
+			word_format_emb = self.word_formatter(word_formats)
+			word_emb = torch.cat([word_emb, word_format_emb], dim=2)
 		if self.config.use_phobert:
 			word_emb = torch.cat([word_emb, phobert_embs], dim=2)
 		if self.training:
