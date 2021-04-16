@@ -25,7 +25,8 @@ class DependencyParser:
 		if config.cross_view and config.mode == 'train':
 			print('prepare unlabel data')
 			self.unlabel_corpus = dataset.Unlabel_Corpus(config, self.device, self.corpus.vocab, phobert, tokenizer)
-		print('total vocab', len(self.corpus.vocab.w2i))
+		print('total vocab word', len(self.corpus.vocab.w2i))
+		print('total vocab character', len(self.corpus.vocab.c2i))
 
 		# model
 		if os.path.exists(config.model_file) and config.continue_train:
