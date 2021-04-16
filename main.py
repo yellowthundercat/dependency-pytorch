@@ -146,6 +146,7 @@ class DependencyParser:
 		print('best las:', self.best_las)
 		print('best step', self.saving_step)
 		print('-'*20)
+		self.evaluate(use_best=False)
 		self.evaluate()
 		if self.config.cross_view:
 			for model_index in range(5):
@@ -177,12 +178,15 @@ class DependencyParser:
 		uas, las = utils.ud_scores(self.config.dev_file, self.config.parsing_file)
 		return val_loss, uas, las
 
-	def evaluate(self, model_type=-1):  # -1 is teacher
-		all_model = torch.load(self.config.model_file)
-		if model_type == -1:
-			self.model = all_model['model']
+	def evaluate(self, model_type=-1, use_best=True):  # -1 is teacher
+		if use_best:
+			all_model = torch.load(self.config.model_file)
+			if model_type == -1:
+				self.model = all_model['model']
+			else:
+				self.model = all_model['model_students'][model_type]
 		else:
-			self.model = all_model['model_students'][model_type]
+			model_type = 'last train'
 		self.model.to(self.device)
 		print('evaluating', model_type, 'model')
 		self.model.eval()
