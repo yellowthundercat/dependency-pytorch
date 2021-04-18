@@ -6,8 +6,9 @@ class Config:
 		self.model_name = 'test_model'
 		self.mode = 'train'  # option: 'train', 'evaluate', 'annotate'
 		self.continue_train = False
-		self.use_small_subset = True
+		self.use_small_subset = False
 		self.use_pos = True
+		self.pos_type = 'lab'  # vn, uni, lab
 		self.use_phobert = True
 		self.use_charCNN = True
 		self.cross_view = False
@@ -31,6 +32,13 @@ class Config:
 		self.train_file = os.path.join(train_data_folder, 'train.txt')
 		self.dev_file = os.path.join(train_data_folder, 'dev.txt')
 		self.test_file = os.path.join(train_data_folder, 'test.txt')
+		self.pos_train_file = os.path.join(train_data_folder, 'lab_train.txt')
+		self.pos_dev_file = os.path.join(train_data_folder, 'lab_dev.txt')
+		self.pos_test_file = os.path.join(train_data_folder, 'lab_test.txt')
+		if self.pos_type == 'uni':
+			self.pos_train_file = os.path.join(train_data_folder, 'uni_train.txt')
+			self.pos_dev_file = os.path.join(train_data_folder, 'uni_dev.txt')
+			self.pos_test_file = os.path.join(train_data_folder, 'uni_test.txt')
 		# for annotation
 		self.input_filename = 'input.txt'
 		self.output_filename = 'output.txt'
@@ -42,7 +50,6 @@ class Config:
 		# range: [(0..11, 0..11 or *)]
 		# self.attention_requires = [(7, '*'), (8, '*')]
 		# self.attention_head_tops = 2
-		self.pos_type = 'vn'  # vn, ud, lab
 		self.word_emb_dim = 100
 		self.phobert_dim = 768
 		self.pos_emb_dim = 50

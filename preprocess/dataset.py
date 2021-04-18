@@ -112,9 +112,8 @@ class Vocab:
 				self.add_word(sentence.word[i])
 				if config.pos_type == 'vn':
 					self.add_tag(sentence.vn_pos[i])
-				elif config.pos_type == 'ud':
-					self.add_tag(sentence.ud_pos[i])
 				else:
+					# lab also can be uni
 					self.add_tag(sentence.lab_pos[i])
 				self.add_label(sentence.dependency_label[i])
 
@@ -168,11 +167,9 @@ class Dataset:
 			self.origin_words.append(sentence.word)
 			self.lengths.append(sentence.length)
 			# self.words.append(sentence.word_embedding)
-			tag_list = sentence.vn_pos
-			if config.pos_type == 'ud':
-				tag_list = sentence.ud_pos
-			if config.pos_type == 'lab':
-				tag_list = sentence.lab_pos
+			tag_list = sentence.lab_pos
+			if config.pos_type == 'vn':
+				tag_list = sentence.vn_pos
 			self.tags.append([vocab.t2i[tag] for tag in tag_list])
 			self.heads.append(sentence.head_index)
 			self.labels.append([vocab.l2i[label] for label in sentence.dependency_label])
@@ -324,9 +321,9 @@ class Dataset:
 
 class Corpus:
 	def __init__(self, config, device, phobert, tokenizer):
-		train_list = read_data(config.train_file, tokenizer)
-		dev_list = read_data(config.dev_file, tokenizer)
-		test_list = read_data(config.test_file, tokenizer)
+		train_list = read_data(config.pos_train_file, tokenizer)
+		dev_list = read_data(config.pos_dev_file, tokenizer)
+		test_list = read_data(config.pos_test_file, tokenizer)
 
 		if os.path.exists(config.vocab_file):
 			self.vocab = torch.load(config.vocab_file)

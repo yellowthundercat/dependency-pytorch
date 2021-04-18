@@ -1,6 +1,6 @@
-source_file = open('data/train.txt', 'r', encoding="utf8")
-pos_file = open('data/raw_train_POS.txt', 'r', encoding="utf8")
-destination_file = open('data/new_train.txt', 'w', encoding="utf8")
+source_file = open('data/vndt/train.txt', 'r', encoding="utf8")
+pos_file = open('data/VnDTv1.1-train.pos_uni.conll', 'r', encoding="utf8")
+destination_file = open('data/uni_train.txt', 'w', encoding="utf8")
 
 sentences = []
 sentence = []
@@ -27,10 +27,11 @@ for index, line in enumerate(pos_file):
 		for tok_index, token in enumerate(token_list):
 			pos = token.split('/')[-1]
 			word_part = token[:len(token)-len(pos)-1]
-			if word_part not in sentences[index][tok_index]:
-				print('not match word', sentences[index][tok_index])
-			else:
+			if word_part in sentences[index][tok_index] or (word_part == 'LBKT' and '(' in sentences[index][tok_index]) or (
+							word_part == 'RBKT' and ')' in sentences[index][tok_index]):
 				sentences[index][tok_index] += '\t' + pos + '\n'
 				destination_file.write(sentences[index][tok_index])
+			else:
+				print('not match word', sentences[index][tok_index])
 		destination_file.write('\n')
 
