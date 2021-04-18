@@ -176,8 +176,6 @@ class Dataset:
 			char_list = []
 			for word in sentence.word:
 				clear_word = preprocess_word(word, False)
-				for c in clear_word:
-					vocab.add_char(c)
 				char_list.append([vocab.c2i[c] for c in clear_word])
 			self.chars.append(char_list)
 			if config.use_phobert:
@@ -327,7 +325,7 @@ class Corpus:
 			self.vocab = Vocab(config, train_list + dev_list + test_list)
 		self.train = Dataset(config, train_list, self.vocab, phobert, device, False, cache_embedding=True)
 		self.dev = Dataset(config, dev_list, self.vocab, phobert, device, True, cache_embedding=True)
-		self.test = Dataset(config, test_list, self.vocab, phobert, device, True, cache_embedding=True)
+		self.test = Dataset(config, test_list, self.vocab, phobert, device, True, cache_embedding=False)
 
 class Unlabel_Corpus:
 	def __init__(self, config, device, vocab, phobert, tokenizer):
