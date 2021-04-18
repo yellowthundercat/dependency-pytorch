@@ -46,7 +46,7 @@ class DependencyParser:
 		for student_model, student_optimizer, student_scheduler in zip(self.model_students, self.optimizer_students, self.scheduler_students):
 			student_model.train()
 			student_model.encoder.mode = 'student'
-			loss = self.model(words, phobert_embs, tags, chars, heads, labels, masks)
+			loss = student_model(words, phobert_embs, tags, chars, heads, labels, masks)
 			student_optimizer.zero_grad()
 			loss.backward()
 			student_optimizer.step()
