@@ -235,11 +235,6 @@ class Dataset:
 				word_emb = features[sentence_index-begin_position][start_index:end_index]
 				word_emb = torch.sum(word_emb, 0).cpu().data.numpy().tolist()
 				# word_emb.append(word_format(self.origin_words[sentence_index][word_index], word_index))
-				# d_model = 20
-				# for i in range(0, d_model, 2):
-				# 	word_emb.append(math.sin(word_index / (10000 ** ((2 * i)/d_model))))
-				# 	word_emb.append(math.cos(word_index / (10000 ** ((2 * (i + 1))/d_model))))
-				# word_embedding.append(torch.sum(word_emb, 0).numpy() / (end_index-start_index))
 				word_embedding.append(word_emb)
 			words.append(word_embedding)
 		return words
@@ -249,7 +244,8 @@ class Dataset:
 			self.words = [self.words[i] for i in new_order]
 		if self.config.use_phobert:
 			self.input_ids = [self.input_ids[i] for i in new_order]
-			self.phobert_embs = [self.phobert_embs[i] for i in new_order]
+			if len(self.phobert_embs) == len(new_order):
+				self.phobert_embs = [self.phobert_embs[i] for i in new_order]
 			self.last_index_position = [self.last_index_position[i] for i in new_order]
 		self.chars = [self.chars[i] for i in new_order]
 		self.tags = [self.tags[i] for i in new_order]

@@ -6,12 +6,12 @@ class Config:
 		self.model_name = 'test_model'
 		self.mode = 'train'  # option: 'train', 'evaluate', 'annotate'
 		self.continue_train = False
-		self.use_small_subset = False
+		self.use_small_subset = True
 		self.use_pos = True
 		self.pos_type = 'lab'  # vn, uni, lab
 		self.use_phobert = True
 		self.use_charCNN = True
-		self.cross_view = False
+		self.cross_view = True
 
 		# file location
 		self.data_folder = 'data'
