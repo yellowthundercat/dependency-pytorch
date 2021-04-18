@@ -5,7 +5,7 @@ class BiAffine(nn.Module):
 	"""BiAffine attention layer."""
 	def __init__(self, config, rnn_size, mlp_size, output_dim, mlp_dropout):
 		super(BiAffine, self).__init__()
-		mlp_activation = nn.ReLU()
+		mlp_activation = nn.LeakyReLU(0.1)
 		self.head_mlp = nn.Sequential(nn.Linear(rnn_size, mlp_size), mlp_activation)
 		self.dep_mlp = nn.Sequential(nn.Linear(rnn_size, mlp_size), mlp_activation)
 		self.head_dropout = nn.Dropout(p=mlp_dropout)
