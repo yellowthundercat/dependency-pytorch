@@ -77,6 +77,9 @@ class DependencyParser:
 	def train(self):
 		print('start training')
 
+		char_list = [char for char, _ in self.corpus.vocab.c2i.items()]
+		print(char_list)
+
 		history = defaultdict(list)
 		total_teacher_loss = total_student_loss = 0
 		count_teacher = count_student = 0
