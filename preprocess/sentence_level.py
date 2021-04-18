@@ -90,8 +90,8 @@ class Sentence:
 			self.last_index_position = last_index_position_list
 
 		self.word = word_list
-		self.vn_pos = vn_pos_list
-		self.lab_pos = lab_pos_list
+		self.vn_pos = [pos.lower() for pos in vn_pos_list]
+		self.lab_pos = [pos.lower() for pos in lab_pos_list]
 		self.head_index = head_list
 		self.dependency_label = dependency_list
 		self.length = len(self.head_index)
