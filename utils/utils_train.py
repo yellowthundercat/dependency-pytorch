@@ -7,7 +7,7 @@ from utils import optimizer
 
 def init_model_student(main_self, config):
 	main_self.model_students = [
-		Parser(main_self.encoder, len(main_self.corpus.vocab.l2i), config, 'uni_bi', 'uni_bi', config.student_dropout),
+		Parser(main_self.encoder, len(main_self.corpus.vocab.l2i), config, 'bi', 'bi', config.student_dropout),
 		Parser(main_self.encoder, len(main_self.corpus.vocab.l2i), config, 'uni_fw', 'uni_fw', config.student_dropout),
 		Parser(main_self.encoder, len(main_self.corpus.vocab.l2i), config, 'uni_fw', 'uni_bw', config.student_dropout),
 		Parser(main_self.encoder, len(main_self.corpus.vocab.l2i), config, 'uni_bw', 'uni_fw', config.student_dropout),

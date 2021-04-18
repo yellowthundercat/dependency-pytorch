@@ -46,20 +46,21 @@ class DependencyParser:
 		self.model.eval()
 		words, phobert_emds, tags, heads, labels, masks, lengths, origin_words, chars = unlabel_batch
 		head_list, lab_list = self.model.predict_batch(words, phobert_emds, tags, chars, lengths)
-		heads = dataset.pad([head.tolist() for head in head_list])
-		labels = dataset.pad([lab.tolist() for lab in lab_list])
+		predict_heads = dataset.pad([head.tolist() for head in head_list])
+		predict_labels = dataset.pad([lab.tolist() for lab in lab_list])
 
 		# train student
 		total_loss = 0
 		for student_model, student_optimizer, student_scheduler in zip(self.model_students, self.optimizer_students, self.scheduler_students):
 			student_model.train()
 			student_model.encoder.mode = 'student'
-			loss = self.model(words, phobert_emds, tags, chars, heads, labels, masks)
+			loss = self.model(words, phobert_emds, tags, chars, predict_heads, predict_labels, masks)
 			student_optimizer.zero_grad()
 			loss.backward()
 			student_optimizer.step()
 			student_scheduler.step()
 			total_loss += loss.item()
+			break
 		return total_loss
 
 	def train_teacher(self, train_batch):

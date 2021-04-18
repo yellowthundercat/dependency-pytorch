@@ -53,7 +53,7 @@ class Config:
 		self.word_emb_dim = 100
 		self.minimum_frequency = 2
 		self.phobert_dim = 768
-		self.pos_emb_dim = 50
+		self.pos_emb_dim = 100
 		self.charCNN_dim = 0  # set later in code
 
 		#sentence level
@@ -66,7 +66,7 @@ class Config:
 		self.lab_mlp_size = 100
 
 		# train
-		self.max_step = 30000
+		self.max_step = 10000
 		self.max_waiting_step = 20000  # if not improve in this period -> stop
 		self.teacher_only_step = 50
 		self.batch_size = 64
