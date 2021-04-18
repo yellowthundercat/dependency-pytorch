@@ -85,7 +85,7 @@ class DependencyParser:
 		try:
 			batch = next(batches)
 		except StopIteration:
-			if is_label:
+			if is_label is False:
 				batches = self.unlabel_corpus.dataset.batches(self.config.batch_size, length_ordered=self.config.length_ordered)
 			else:
 				batches = self.corpus.train.batches(self.config.batch_size, length_ordered=self.config.length_ordered)
@@ -113,7 +113,7 @@ class DependencyParser:
 			else:
 				# train student
 				if (global_step // 2) % self.config.gold_student_step == 0:
-					train_batch , train_batches = self.get_train_batch(train_batches, is_label=True)
+					train_batch, train_batches = self.get_train_batch(train_batches, is_label=True)
 					total_student_loss += self.train_gold_student(train_batch)
 				else:
 					unlabel_batch, unlabel_batches = self.get_train_batch(unlabel_batches, is_label=False)
