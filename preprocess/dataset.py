@@ -78,7 +78,9 @@ def default_value():
 
 class Vocab:
 	def __init__(self, config, sentence_list):
+		self.config = config
 		self.w2i = defaultdict(default_value)
+		self.pre_w = defaultdict(lambda :0)
 		self.t2i = defaultdict(default_value)
 		self.l2i = defaultdict(default_value)
 		self.c2i = defaultdict(default_value)
@@ -117,16 +119,24 @@ class Vocab:
 					self.add_tag(sentence.lab_pos[i])
 				self.add_label(sentence.dependency_label[i])
 
-	def add_word(self, word, unk=False):
+	def real_add_word(self, word):
+		i = len(self.i2w)
+		self.i2w[i] = word
+		self.w2i[word] = i
+
+	def add_word(self, word, unk=False, is_label=True):
 		word = preprocess_word(word)
 		if word not in self.w2i:
 			if unk:
 				self.i2w[UNK_INDEX] = UNK_TOKEN
 				self.w2i[word] = UNK_INDEX
 			else:
-				i = len(self.i2w)
-				self.i2w[i] = word
-				self.w2i[word] = i
+				if is_label:
+					self.real_add_word(word)
+				else:
+					self.pre_w[word] += 1
+					if self.pre_w[word] >= self.config.minimum_frequency:
+						self.real_add_word(word)
 
 	def add_tag(self, tag):
 		if tag not in self.t2i:

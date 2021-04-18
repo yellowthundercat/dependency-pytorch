@@ -46,7 +46,7 @@ def unlabel_sentence(word_list, pos_list, tokenizer):
 	word_list = [ROOT_TOKEN] + word_list
 	pos_list = [ROOT_TAG] + pos_list
 	lent = len(word_list)
-	return Sentence(word_list, [0]*lent, pos_list, [0]*lent, [0]*lent, tokenizer)
+	return Sentence(word_list, ['0']*lent, pos_list, [0]*lent, [0]*lent, tokenizer)
 
 def read_unlabel_data(file_name, tokenizer, vocab):
 	sentence_list = []
@@ -58,7 +58,7 @@ def read_unlabel_data(file_name, tokenizer, vocab):
 		for token in token_list:
 			pos = token.split('/')[-1]
 			word_part = token[:len(token) - len(pos) - 1]
-			vocab.add_word(word_part)
+			vocab.add_word(word_part, unk=False, is_label=False)
 			word_list.append(word_part)
 			pos_list.append(pos)
 		if 2 < len(word_list) < 50:
