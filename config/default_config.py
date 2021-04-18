@@ -11,7 +11,7 @@ class Config:
 		self.pos_type = 'lab'  # vn, uni, lab
 		self.use_phobert = True
 		self.use_charCNN = True
-		self.cross_view = True
+		self.cross_view = False
 
 		# file location
 		self.data_folder = 'data'
@@ -53,7 +53,7 @@ class Config:
 		self.word_emb_dim = 100
 		self.minimum_frequency = 2
 		self.phobert_dim = 768
-		self.pos_emb_dim = 50
+		self.pos_emb_dim = 100
 		self.charCNN_dim = 0  # set later in code
 
 		#sentence level
