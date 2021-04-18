@@ -41,27 +41,33 @@ class DependencyParser:
 			for model_student in self.model_students:
 				model_student.to(self.device)
 
-	def train_student(self, unlabel_batch):
-		# use teacher to predict
-		self.model.eval()
-		words, phobert_emds, tags, heads, labels, masks, lengths, origin_words, chars = unlabel_batch
-		head_list, lab_list = self.model.predict_batch(words, phobert_emds, tags, chars, lengths)
-		predict_heads = dataset.pad([head.tolist() for head in head_list])
-		predict_labels = dataset.pad([lab.tolist() for lab in lab_list])
-
-		# train student
+	def internal_train_student(self, words, phobert_embs, tags, chars, heads, labels, masks):
 		total_loss = 0
 		for student_model, student_optimizer, student_scheduler in zip(self.model_students, self.optimizer_students, self.scheduler_students):
 			student_model.train()
 			student_model.encoder.mode = 'student'
-			loss = self.model(words, phobert_emds, tags, chars, predict_heads, predict_labels, masks)
+			loss = self.model(words, phobert_embs, tags, chars, heads, labels, masks)
 			student_optimizer.zero_grad()
 			loss.backward()
 			student_optimizer.step()
 			student_scheduler.step()
 			total_loss += loss.item()
-			break
 		return total_loss
+
+	def train_gold_student(self, gold_batch):
+		words, phobert_embs, tags, heads, labels, masks, lengths, origin_words, chars = gold_batch
+		return self.internal_train_student(words, phobert_embs, tags, chars, heads, labels, masks)
+
+
+	def train_student(self, unlabel_batch):
+		# use teacher to predict
+		self.model.eval()
+		self.model.encoder.mode = 'teacher'
+		words, phobert_embs, tags, heads, labels, masks, lengths, origin_words, chars = unlabel_batch
+		head_list, lab_list = self.model.predict_batch(words, phobert_embs, tags, chars, lengths)
+		predict_heads = dataset.pad([head.tolist() for head in head_list])
+		predict_labels = dataset.pad([lab.tolist() for lab in lab_list])
+		return self.internal_train_student(words, phobert_embs, tags, chars, predict_heads, predict_labels, masks)
 
 	def train_teacher(self, train_batch):
 		self.model.train()
@@ -74,6 +80,17 @@ class DependencyParser:
 		if self.config.use_momentum:
 			self.scheduler.step()
 		return loss.item()
+
+	def get_train_batch(self, batches, is_label=True):
+		try:
+			batch = next(batches)
+		except StopIteration:
+			if is_label:
+				batches = self.unlabel_corpus.dataset.batches(self.config.batch_size, length_ordered=self.config.length_ordered)
+			else:
+				batches = self.corpus.train.batches(self.config.batch_size, length_ordered=self.config.length_ordered)
+			batch = next(batches)
+		return batch, batches
 
 	def train(self):
 		print('start training')
@@ -89,22 +106,18 @@ class DependencyParser:
 		for global_step in range(self.saving_step+1, self.config.max_step+1):
 			# train
 			if global_step <= self.config.teacher_only_step or global_step % 2 == 1 or self.config.cross_view is False:
-				#train teacher]
-				try:
-					train_batch = next(train_batches)
-				except StopIteration:
-					train_batches = self.corpus.train.batches(self.config.batch_size, length_ordered=self.config.length_ordered)
-					train_batch = next(train_batches)
+				# train teacher
+				train_batch, train_batches = self.get_train_batch(train_batches, is_label=True)
 				total_teacher_loss += self.train_teacher(train_batch)
 				count_teacher += 1
 			else:
 				# train student
-				try:
-					unlabel_batch = next(unlabel_batches)
-				except StopIteration:
-					unlabel_batches = self.unlabel_corpus.dataset.batches(self.config.batch_size, length_ordered=self.config.length_ordered)
-					unlabel_batch = next(unlabel_batches)
-				total_student_loss += self.train_student(unlabel_batch)
+				if (global_step // 2) % self.config.gold_student_step == 0:
+					train_batch , train_batches = self.get_train_batch(train_batches, is_label=True)
+					total_student_loss += self.train_gold_student(train_batch)
+				else:
+					unlabel_batch, unlabel_batches = self.get_train_batch(unlabel_batches, is_label=False)
+					total_student_loss += self.train_student(unlabel_batch)
 				count_student += 5
 
 			# print result
@@ -124,7 +137,7 @@ class DependencyParser:
 			# eval dev
 			if global_step % self.config.eval_dev_every == 0 or global_step == self.config.max_step:
 				print('-' * 20)
-				val_loss, uas, las = self.check_dev()
+				val_loss, uas, las = self.check_dev(self.model, 'teacher')
 				history['val_loss'].append(val_loss)
 				history['uas'].append(uas)
 				history['las'].append(las)
@@ -136,6 +149,11 @@ class DependencyParser:
 					self.best_loss = val_loss
 					self.saving_step = global_step
 					utils_train.save_model(self, self.config)
+
+				if self.config.print_dev_student and self.config.cross_view:
+					for s_i, student_model in enumerate(self.model_students):
+						val_loss, uas, las = self.check_dev(student_model, 'student')
+						print(f'EVAL Student {s_i}: val loss = {val_loss:.4f}, UAS = {uas:.4f}, LAS = {las:.4f}')
 				print('-' * 20)
 				if global_step - self.saving_step > self.config.max_waiting_step:
 					break
@@ -153,9 +171,10 @@ class DependencyParser:
 			for model_index in range(5):
 				self.evaluate(model_index)
 
-	def check_dev(self):
+	def check_dev(self, model, mode):
 		stats = Counter()
-		self.model.eval()
+		model.eval()
+		model.encoder.mode = mode
 		dev_batches = self.corpus.dev.batches(self.config.batch_size, shuffle=False, length_ordered=False)
 		dev_batch_length = 0
 		dev_word_list = []
@@ -166,7 +185,7 @@ class DependencyParser:
 			for batch in dev_batches:
 				dev_batch_length += 1
 				words, phobert_embs, tags, heads, labels, masks, lengths, origin_words, chars = batch
-				loss, head_list, lab_list = self.model.predict_batch_with_loss(words, phobert_embs, tags, chars, heads, labels, masks, lengths)
+				loss, head_list, lab_list = model.predict_batch_with_loss(words, phobert_embs, tags, chars, heads, labels, masks, lengths)
 				stats['val_loss'] += loss.item()
 				dev_head_list += head_list
 				dev_lab_list += lab_list
@@ -184,8 +203,10 @@ class DependencyParser:
 			all_model = torch.load(self.config.model_file)
 			if model_type == -1:
 				self.model = all_model['model']
+				self.model.encoder.mode = 'teacher'
 			else:
 				self.model = all_model['model_students'][model_type]
+				self.model.encoder.mode = 'student'
 		else:
 			model_type = 'last train'
 		self.model.to(self.device)

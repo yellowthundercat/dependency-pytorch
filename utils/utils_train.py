@@ -6,8 +6,11 @@ from models.deep_biaffine import DeepBiaffine
 from utils import optimizer
 
 def init_model_student(main_self, config):
+	teacher_encoder = 'bi'
+	if config.use_first_layer:
+		teacher_encoder = 'uni_bi'
 	main_self.model_students = [
-		Parser(main_self.encoder, len(main_self.corpus.vocab.l2i), config, 'bi', 'bi', config.student_dropout),
+		Parser(main_self.encoder, len(main_self.corpus.vocab.l2i), config, teacher_encoder, teacher_encoder, config.student_dropout),
 		Parser(main_self.encoder, len(main_self.corpus.vocab.l2i), config, 'uni_fw', 'uni_fw', config.student_dropout),
 		Parser(main_self.encoder, len(main_self.corpus.vocab.l2i), config, 'uni_fw', 'uni_bw', config.student_dropout),
 		Parser(main_self.encoder, len(main_self.corpus.vocab.l2i), config, 'uni_bw', 'uni_fw', config.student_dropout),

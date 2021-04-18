@@ -56,7 +56,7 @@ class Config:
 		self.pos_emb_dim = 100
 		self.charCNN_dim = 0  # set later in code
 
-		#sentence level
+		# sentence level
 		self.length_ordered = False
 		self.teacher_dropout = 0.33
 		self.student_dropout = 0.5
@@ -79,6 +79,10 @@ class Config:
 			self.eval_dev_every = 10
 			self.max_step = 100
 			self.teacher_only_step = 0
+
+		# cross-view
+		self.gold_student_step = 5
+		self.print_dev_student = True
 
 		# optimizer
 		# momentum for cross-view training
