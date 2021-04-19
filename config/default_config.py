@@ -56,7 +56,7 @@ class Config:
 		self.pos_emb_dim = 100
 		self.charCNN_dim = 0  # set later in code
 
-		#sentence level
+		# sentence level
 		self.length_ordered = False
 		self.teacher_dropout = 0.33
 		self.student_dropout = 0.5
@@ -66,7 +66,7 @@ class Config:
 		self.lab_mlp_size = 100
 
 		# train
-		self.max_step = 30000
+		self.max_step = 10000
 		self.max_waiting_step = 20000  # if not improve in this period -> stop
 		self.teacher_only_step = 50
 		self.batch_size = 64
@@ -79,6 +79,10 @@ class Config:
 			self.eval_dev_every = 10
 			self.max_step = 100
 			self.teacher_only_step = 0
+
+		# cross-view
+		self.gold_student_step = 5
+		self.print_dev_student = True
 
 		# optimizer
 		# momentum for cross-view training
