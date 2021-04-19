@@ -3,6 +3,7 @@ from torch import nn
 from torch.nn import TransformerEncoder, TransformerEncoderLayer
 import math
 
+
 class PositionalEncoding(nn.Module):
 	r"""Inject some information about the relative or absolute position of the tokens
 			in the sequence. The positional encodings have the same dimension as
@@ -20,7 +21,7 @@ class PositionalEncoding(nn.Module):
 			pos_encoder = PositionalEncoding(d_model)
 	"""
 
-	def __init__(self, d_model, dropout=0.1, max_len=500):
+	def __init__(self, d_model, dropout=0.1, max_len=5000):
 		super(PositionalEncoding, self).__init__()
 		pe = torch.zeros(max_len, d_model)
 		position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
@@ -44,16 +45,41 @@ class PositionalEncoding(nn.Module):
 		x = x + self.pe[:x.size(0), :]
 		return x
 
+
 class TransformerModel(nn.Module):
+	"""Container module with an encoder, a recurrent or transformer module, and a decoder."""
+
 	def __init__(self, config, input_dim):
 		super(TransformerModel, self).__init__()
-		self.config = config
-		self.projection = nn.Linear(input_dim, config.transformer_dim)
-		self.pos_encoder = PositionalEncoding(config.transformer_dim, 0.1)
-		encoder_layers = TransformerEncoderLayer(config.transformer_dim, config.transformer_head, config.transformer_ff_dim, config.transformer_dropout)
+		self.model_type = 'Transformer'
+		self.src_mask = None
+		self.dim = config.transformer_dim
+		self.projection = nn.Linear(input_dim, self.dim)
+		self.pos_encoder = PositionalEncoding(self.dim)
+		encoder_layers = TransformerEncoderLayer(self.dim, config.transformer_head, config.transformer_ff_dim, config.transformer_dropout)
 		self.transformer_encoder = TransformerEncoder(encoder_layers, config.transformer_layer)
 
-	def forward(self, src):
-		src = self.projection(src) * math.sqrt(self.config.transformer_dim)
+		self.init_weights()
+
+	def _generate_square_subsequent_mask(self, sz):
+		mask = (torch.triu(torch.ones(sz, sz)) == 1).transpose(0, 1)
+		mask = mask.float().masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, float(0.0))
+		return mask
+
+	def init_weights(self):
+		initrange = 0.1
+		nn.init.uniform_(self.projection.weight, -initrange, initrange)
+
+	def forward(self, src, has_mask=True):
+		if has_mask:
+			device = src.device
+			if self.src_mask is None or self.src_mask.size(0) != len(src):
+				mask = self._generate_square_subsequent_mask(len(src)).to(device)
+				self.src_mask = mask
+		else:
+			self.src_mask = None
+
+		src = self.projection(src) * math.sqrt(self.dim)
 		src = self.pos_encoder(src)
-		return self.transformer_encoder(src)
+		output = self.transformer_encoder(src, self.src_mask)
+		return output
