@@ -68,10 +68,10 @@ class Config:
 		self.rnn_size = 300  # output encode = 4*rnn_size (2 biLSTM)
 		self.rnn_depth = 3
 		self.transformer_layer = 2
-		# self.transformer_dim = 512
-		self.transformer_head = 2
+		self.transformer_dim = 512
+		self.transformer_head = 4
 		self.transformer_ff_dim = 1048
-		self.transformer_dropout = 0.2
+		self.transformer_dropout = 0.1
 
 
 		# train

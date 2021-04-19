@@ -22,8 +22,6 @@ class PositionalEncoding(nn.Module):
 
 	def __init__(self, d_model, dropout=0.1, max_len=500):
 		super(PositionalEncoding, self).__init__()
-		self.dropout = nn.Dropout(p=dropout)
-
 		pe = torch.zeros(max_len, d_model)
 		position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
 		div_term = torch.exp(torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model))
@@ -44,17 +42,18 @@ class PositionalEncoding(nn.Module):
 		"""
 
 		x = x + self.pe[:x.size(0), :]
-		if self.training:
-			return self.dropout(x)
 		return x
 
 class TransformerModel(nn.Module):
 	def __init__(self, config, input_dim):
 		super(TransformerModel, self).__init__()
-		self.pos_encoder = PositionalEncoding(input_dim, 0.1)
-		encoder_layers = TransformerEncoderLayer(input_dim, config.transformer_head, config.transformer_ff_dim, config.transformer_dropout)
+		self.config = config
+		self.projection = nn.Linear(input_dim, config.transformer_dim)
+		self.pos_encoder = PositionalEncoding(config.transformer_dim, 0.1)
+		encoder_layers = TransformerEncoderLayer(config.transformer_dim, config.transformer_head, config.transformer_ff_dim, config.transformer_dropout)
 		self.transformer_encoder = TransformerEncoder(encoder_layers, config.transformer_layer)
 
 	def forward(self, src):
+		src = self.projection(src) * math.sqrt(self.config.transformer_dim)
 		src = self.pos_encoder(src)
 		return self.transformer_encoder(src)

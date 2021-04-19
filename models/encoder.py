@@ -43,7 +43,7 @@ class RNNEncoder(nn.Module):
 			self.rnn2 = nn.LSTM(input_size=2*config.rnn_size, hidden_size=config.rnn_size, batch_first=True, bidirectional=True,
 													dropout=config.teacher_dropout, num_layers=config.rnn_depth-1)
 		else:
-			self.out_dim = input_dim
+			self.out_dim = config.transformer_dim
 			self.transformer = TransformerModel(config, input_dim)
 
 	def forward_student_training(self, words, phobert_embs, postags, chars):
