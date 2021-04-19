@@ -8,7 +8,7 @@ class Config:
 		self.continue_train = False
 		self.use_small_subset = True
 		self.use_pos = True
-		self.pos_type = 'lab'  # vn, uni, lab
+		self.pos_type = 'vn'  # vn, uni, lab
 		self.use_phobert = True
 		self.use_charCNN = True
 		self.cross_view = False
@@ -54,16 +54,25 @@ class Config:
 		self.minimum_frequency = 2
 		self.phobert_dim = 768
 		self.pos_emb_dim = 100
-		self.charCNN_dim = 0  # set later in code
+		self.charCNN_dim = 0  # set later in code about 150
 
 		# sentence level
 		self.length_ordered = False
 		self.teacher_dropout = 0.33
 		self.student_dropout = 0.5
-		self.rnn_size = 300  # output encode = 4*rnn_size (2 biLSTM)
-		self.rnn_depth = 3
 		self.arc_mlp_size = 300
 		self.lab_mlp_size = 100
+
+		# encoder
+		self.encoder = 'transformer'  # biLSTM, transformer
+		self.rnn_size = 300  # output encode = 4*rnn_size (2 biLSTM)
+		self.rnn_depth = 3
+		self.transformer_layer = 2
+		# self.transformer_dim = 512
+		self.transformer_head = 2
+		self.transformer_ff_dim = 1048
+		self.transformer_dropout = 0.2
+
 
 		# train
 		self.max_step = 10000

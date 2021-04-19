@@ -16,22 +16,17 @@ class Parser(nn.Module):
 		# Sentence encoder module.
 		self.encoder = encoder
 		# Edge scoring module.
-		rnn_size = config.rnn_size
+		scorer_size = config.rnn_size
 		if head_repr_type == 'uni_bi':
-			rnn_size = 4 * config.rnn_size
+			scorer_size = 4 * config.rnn_size
 		if head_repr_type == 'bi':
-			rnn_size = 2 * config.rnn_size
-		self.scorer = BiaffineScorer(config, rnn_size, n_label, dropout)
+			scorer_size = 2 * config.rnn_size
+		if config.encoder == 'transformer':
+			scorer_size = encoder.out_dim
+		self.scorer = BiaffineScorer(config, scorer_size, n_label, dropout)
 
 		# Loss function that we will use during training.
 		self.loss = torch.nn.CrossEntropyLoss(reduction='none')
-
-	# def word_tag_dropout(self, words, postags, p_drop):
-	# 	# Randomly replace some of the positions in the word and postag tensors with a zero.
-	# 	# This solution is a bit hacky because we assume that zero corresponds to the "unknown" token.
-	# 	w_dropout_mask = (torch.rand(size=words.shape, device=words.device) > p_drop).long()
-	# 	p_dropout_mask = (torch.rand(size=postags.shape, device=words.device) > p_drop).long()
-	# 	return words * w_dropout_mask, postags * p_dropout_mask
 
 	def get_repr_from_mode(self, rnn1_out, rnn2_out, uni_fw, uni_bw, mode):
 		if mode == 'bi':
@@ -47,21 +42,22 @@ class Parser(nn.Module):
 		dep_repr = self.get_repr_from_mode(rnn1_out, rnn2_out, uni_fw, uni_bw, self.dep_repr_type)
 		return head_repr, dep_repr
 
-	def forward(self, words, phobert_embs, postags, chars, heads, labels, masks):
-
-		# if self.training:
-		# 	# If we are training, apply the word/tag dropout to the word and tag tensors.
-		# 	words, postags = self.word_tag_dropout(words, postags, self.config.drop_out_rate)
-
-		rnn1_out, rnn2_out, uni_fw, uni_bw = self.encoder(words, phobert_embs, postags, chars)
-		head_repr, dep_repr = self.get_encoder_repr(rnn1_out, rnn2_out, uni_fw, uni_bw)
+	def get_scorer_repr(self, words, phobert_embs, postags, chars):
+		if self.config.encoder == 'biLSTM':
+			rnn1_out, rnn2_out, uni_fw, uni_bw = self.encoder(words, phobert_embs, postags, chars)
+			head_repr, dep_repr = self.get_encoder_repr(rnn1_out, rnn2_out, uni_fw, uni_bw)
+		else:
+			head_repr = dep_repr = self.encoder(words, phobert_embs, postags, chars)
 		arc_score, lab_score = self.scorer(head_repr, dep_repr)
+		return arc_score, lab_score
+
+	def forward(self, words, phobert_embs, postags, chars, heads, labels, masks):
+		arc_score, lab_score = self.get_scorer_repr(words, phobert_embs, postags, chars)
 
 		# We don't want to evaluate the loss or attachment score for the positions
 		# where we have a padding token. So we create a mask that will be zero for those
 		# positions and one elsewhere.
 		pad_mask = masks
-
 		return self.compute_loss(arc_score, lab_score, heads, labels, pad_mask)
 
 	def compute_loss(self, arc_score, lab_score, heads, labels, pad_mask):
@@ -112,15 +108,11 @@ class Parser(nn.Module):
 		return head_list, lab_list
 
 	def predict_batch(self, words, phobert_embs, postags, chars, lengths):
-		rnn1_out, rnn2_out, uni_fw, uni_bw = self.encoder(words, phobert_embs, postags, chars)
-		head_repr, dep_repr = self.get_encoder_repr(rnn1_out, rnn2_out, uni_fw, uni_bw)
-		arc_score, lab_score = self.scorer(head_repr, dep_repr)
+		arc_score, lab_score = self.get_scorer_repr(words, phobert_embs, postags, chars)
 		return self.parse_from_score(arc_score, lab_score, lengths)
 
 	def predict_batch_with_loss(self, words, phobert_embs, postags, chars, heads, labels, pad_masks, lengths):
-		rnn1_out, rnn2_out, uni_fw, uni_bw = self.encoder(words, phobert_embs, postags, chars)
-		head_repr, dep_repr = self.get_encoder_repr(rnn1_out, rnn2_out, uni_fw, uni_bw)
-		arc_score, lab_score = self.scorer(head_repr, dep_repr)
+		arc_score, lab_score = self.get_scorer_repr(words, phobert_embs, postags, chars)
 		loss = self.compute_loss(arc_score, lab_score, heads, labels, pad_masks)
 		head_list, lab_list = self.parse_from_score(arc_score, lab_score, lengths)
 		return loss, head_list, lab_list
