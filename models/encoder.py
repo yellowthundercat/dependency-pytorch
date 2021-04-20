@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 from models.charCNN import ConvolutionalCharEmbedding
-from models.transformer import TransformerModel
+from models.other_transformer import TransformerEncoder
 from preprocess.dataset import PAD_INDEX
 
 class RNNEncoder(nn.Module):
@@ -44,9 +44,12 @@ class RNNEncoder(nn.Module):
 													dropout=config.teacher_dropout, num_layers=config.rnn_depth-1)
 		else:
 			self.out_dim = config.transformer_dim
-			self.transformer = TransformerModel(config, input_dim)
+			self.transformer = TransformerEncoder(input_dim, config.transformer_layer, config.transformer_dim,
+																						config.transformer_ff_dim, config.transformer_head, config.transformer_dropout)
 
 	def forward_student_training(self, words, phobert_embs, postags, chars):
+		if self.config.encoder == 'transformer':
+			aux = (words != PAD_INDEX).unsqueeze(-2)  # mask
 		word_emb = self.word_project(words)
 		if self.config.use_phobert:
 			word_emb = torch.cat([word_emb, phobert_embs], dim=2)
@@ -70,13 +73,15 @@ class RNNEncoder(nn.Module):
 			rnn2_out = self.rnn2_dropout_student(rnn2_out)
 			return rnn1_out, rnn2_out, uni_fw, uni_bw
 		else:
-			return self.transformer(word_emb)
+			return self.transformer(word_emb, aux)
 
 	def forward(self, words, phobert_embs, postags, chars):
 		if self.mode == 'student' and self.training:
 			return self.forward_student_training(words, phobert_embs, postags, chars)
 
 		# Look up
+		if self.config.encoder == 'transformer':
+			aux = (words != PAD_INDEX).unsqueeze(-2)  # mask
 		word_emb = self.word_project(words)
 		if self.config.use_phobert:
 			word_emb = torch.cat([word_emb, phobert_embs], dim=2)
@@ -103,4 +108,4 @@ class RNNEncoder(nn.Module):
 				rnn2_out = self.rnn2_dropout(rnn2_out)
 			return rnn1_out, rnn2_out, uni_fw, uni_bw
 		else:
-			return self.transformer(word_emb)
+			return self.transformer(word_emb, aux)
