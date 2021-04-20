@@ -8,7 +8,7 @@ class Config:
 		self.continue_train = False
 		self.use_small_subset = True
 		self.use_pos = True
-		self.pos_type = 'vn'  # vn, uni, lab
+		self.pos_type = 'lab'  # vn, uni, lab
 		self.use_phobert = True
 		self.use_charCNN = True
 		self.cross_view = True
