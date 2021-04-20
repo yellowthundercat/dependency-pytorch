@@ -168,7 +168,7 @@ class DependencyParser:
 		self.evaluate(use_best=False)
 		self.evaluate()
 		if self.config.cross_view:
-			for model_index in range(5):
+			for model_index, student_model in enumerate(self.model_students):
 				self.evaluate(model_index)
 
 	def check_dev(self, model, mode):

@@ -11,7 +11,7 @@ class Config:
 		self.pos_type = 'vn'  # vn, uni, lab
 		self.use_phobert = True
 		self.use_charCNN = True
-		self.cross_view = False
+		self.cross_view = True
 
 		# file location
 		self.data_folder = 'data'

@@ -172,7 +172,7 @@ class TransformerEncoder(nn.Module):
         """Initialize parameters with Glorot."""
         for p in self.parameters():
             if p.dim() > 1:
-                nn.init.xavier_uniform(p)
+                nn.init.xavier_uniform_(p)
 
     def forward(self, x, mask):
         """Take in and process masked src and target sequences."""
