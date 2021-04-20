@@ -71,7 +71,7 @@ class TransformerModel(nn.Module):
 		nn.init.uniform_(self.projection.weight, -initrange, initrange)
 
 	def forward(self, src, has_mask=True):
-		src = torch.transpose(src, 0, 1)
+		src = torch.transpose(src, 0, 1).contiguous()
 		if has_mask:
 			device = src.device
 			if self.src_mask is None or self.src_mask.size(0) != len(src):
@@ -83,4 +83,4 @@ class TransformerModel(nn.Module):
 		src = self.projection(src) * math.sqrt(self.dim)
 		src = self.pos_encoder(src)
 		output = self.transformer_encoder(src, self.src_mask)
-		return torch.transpose(output, 0, 1)
+		return torch.transpose(output, 0, 1).contiguous()
