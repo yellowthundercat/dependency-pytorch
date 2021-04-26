@@ -39,8 +39,8 @@ def init_model_student(main_self, config):
 	main_self.scheduler = optimizer.momentum_scheduler(main_self.optimizer, config)
 	main_self.scheduler_students = [optimizer.momentum_scheduler(opt_student, config) for opt_student in
 																	main_self.optimizer_students]
-	main_self.optimizer_pos = optimizer.momentum(main_self.model_pos.parameters(), config, config.lr_momentum)
-	main_self.optimizer_students_pos = [optimizer.momentum(model.parameters(), config, config.student_lr_momentum) for model
+	main_self.optimizer_pos = optimizer.momentum(main_self.model_pos.parameters(), config, config.lr_momentum_pos)
+	main_self.optimizer_students_pos = [optimizer.momentum(model.parameters(), config, config.student_lr_momentum_pos) for model
 																	in main_self.model_students_pos]
 	main_self.scheduler_pos = optimizer.momentum_scheduler(main_self.optimizer_pos, config)
 	main_self.scheduler_students_pos = [optimizer.momentum_scheduler(opt_student, config) for opt_student in

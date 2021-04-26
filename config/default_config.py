@@ -109,6 +109,8 @@ class Config:
 		self.use_momentum = True  # crossview must use
 		self.lr_momentum = 0.5  # base learning rate
 		self.student_lr_momentum = 0.2
+		self.lr_momentum_pos = 0.2
+		self.student_lr_momentum_pos = 0.1
 		self.momentum = 0.9  # momentum
 		self.grad_clip = 1.0  # maximum gradient norm during optimization
 		self.warm_up_steps = 5000.0  # linearly ramp up the lr for this many steps

@@ -82,6 +82,7 @@ class DependencyParser:
 		self.optimizer.step()
 
 		if self.config.train_pos:
+			self.model_pos.train()
 			loss_pos = self.model_pos(words, phobert_embs, tags, chars, masks)
 			self.optimizer_pos.zero_grad()
 			loss_pos.backward()
