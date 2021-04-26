@@ -18,7 +18,7 @@ def init_model_student(main_self, config):
 			Parser(main_self.encoder, len(main_self.corpus.vocab.l2i), config, 'uni_bw', 'uni_fw', config.student_dropout),
 			Parser(main_self.encoder, len(main_self.corpus.vocab.l2i), config, 'uni_bw', 'uni_bw', config.student_dropout)
 		]
-		main_self.model_students = [
+		main_self.model_students_pos = [
 			Pos_paser(config, teacher_encoder, main_self.encoder, False, len(main_self.corpus.vocab.t2i),
 								config.pos_student_dropout),
 			Pos_paser(config, 'uni_fw', main_self.encoder, True, len(main_self.corpus.vocab.t2i),

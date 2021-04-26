@@ -8,7 +8,7 @@ class Config:
 		self.continue_train = False
 		self.use_small_subset = True
 		self.train_pos = True
-		self.use_pos = False  # not use pos when train pos
+		self.use_pos = True  # not use pos when train pos
 		if self.train_pos is True:
 			self.use_pos = False
 		self.pos_type = 'vn'  # vn, uni, lab
@@ -75,7 +75,7 @@ class Config:
 		self.lab_mlp_size = 100
 
 		# encoder
-		self.encoder = 'biLSTM'  # biLSTM, transformer
+		self.encoder = 'transformer'  # biLSTM, transformer
 		self.rnn_size = 300  # output encode = 4*rnn_size (2 biLSTM)
 		self.rnn_depth = 3
 		self.transformer_layer = 3
@@ -109,7 +109,7 @@ class Config:
 		self.use_momentum = True  # crossview must use
 		self.lr_momentum = 0.5  # base learning rate
 		self.student_lr_momentum = 0.2
-		self.pos_lambda = 0.1
+		self.pos_lambda = 1
 		self.momentum = 0.9  # momentum
 		self.grad_clip = 1.0  # maximum gradient norm during optimization
 		self.warm_up_steps = 5000.0  # linearly ramp up the lr for this many steps

@@ -80,6 +80,8 @@ class DependencyParser:
 		self.optimizer.zero_grad()
 		loss.backward()
 		self.optimizer.step()
+		if self.config.use_momentum:
+			self.scheduler.step()
 
 		if self.config.train_pos:
 			self.model_pos.train()
