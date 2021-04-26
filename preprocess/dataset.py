@@ -325,9 +325,9 @@ class Dataset:
 
 class Corpus:
 	def __init__(self, config, device, phobert, tokenizer):
-		train_list = read_data(config.pos_train_file, tokenizer)
-		dev_list = read_data(config.pos_dev_file, tokenizer)
-		test_list = read_data(config.pos_test_file, tokenizer)
+		train_list = read_data(config.pos_train_file, tokenizer, config)
+		dev_list = read_data(config.pos_dev_file, tokenizer, config)
+		test_list = read_data(config.pos_test_file, tokenizer, config)
 
 		if os.path.exists(config.vocab_file):
 			self.vocab = torch.load(config.vocab_file)

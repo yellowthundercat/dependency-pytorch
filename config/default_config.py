@@ -7,8 +7,11 @@ class Config:
 		self.mode = 'train'  # option: 'train', 'evaluate', 'annotate'
 		self.continue_train = False
 		self.use_small_subset = True
-		self.use_pos = True
-		self.pos_type = 'lab'  # vn, uni, lab
+		self.train_pos = True
+		self.use_pos = False  # not use pos when train pos
+		if self.train_pos is True:
+			self.use_pos = False
+		self.pos_type = 'vn'  # vn, uni, lab
 		self.use_phobert = True
 		self.use_charCNN = True
 		self.cross_view = False
@@ -39,6 +42,11 @@ class Config:
 			self.pos_train_file = os.path.join(train_data_folder, 'uni_train.txt')
 			self.pos_dev_file = os.path.join(train_data_folder, 'uni_dev.txt')
 			self.pos_test_file = os.path.join(train_data_folder, 'uni_test.txt')
+		if self.pos_type == 'vn' and self.train_pos is True:
+			self.train_file = self.pos_train_file = os.path.join(train_data_folder, 'gold_train.txt')
+			self.dev_file = self.pos_dev_file = os.path.join(train_data_folder, 'gold_dev.txt')
+			self.pos_test_file = os.path.join(train_data_folder, 'test.txt')
+
 		# for annotation
 		self.input_filename = 'input.txt'
 		self.output_filename = 'output.txt'
@@ -54,16 +62,28 @@ class Config:
 		self.minimum_frequency = 2
 		self.phobert_dim = 768
 		self.pos_emb_dim = 100
-		self.charCNN_dim = 0  # set later in code
+		self.charCNN_dim = 0  # set later in code about 150
 
 		# sentence level
+		self.pos_hidden_dim = 200  # for train pos
+		self.pos_teacher_dropout = 0.33
+		self.pos_student_dropout = 0.5
 		self.length_ordered = False
 		self.teacher_dropout = 0.33
 		self.student_dropout = 0.5
-		self.rnn_size = 300  # output encode = 4*rnn_size (2 biLSTM)
-		self.rnn_depth = 3
 		self.arc_mlp_size = 300
 		self.lab_mlp_size = 100
+
+		# encoder
+		self.encoder = 'biLSTM'  # biLSTM, transformer
+		self.rnn_size = 300  # output encode = 4*rnn_size (2 biLSTM)
+		self.rnn_depth = 3
+		self.transformer_layer = 3
+		self.transformer_dim = 256
+		self.transformer_head = 2
+		self.transformer_ff_dim = 512
+		self.transformer_dropout = 0.2
+
 
 		# train
 		self.max_step = 10000

@@ -3,7 +3,7 @@ import time
 from preprocess.char import ROOT_TOKEN, ROOT_TAG, ROOT_LABEL
 from utils import utils
 
-def _get_useful_column_ud(sentence, tokenizer):
+def _get_useful_column_ud(sentence, tokenizer, config):
 	# word, ud pos, vn pos, head index, dependency label
 	sentence = [[0, ROOT_TOKEN, 2, ROOT_TAG, ROOT_TAG, 5, 0, ROOT_LABEL, 8, 9, ROOT_TAG]] + sentence
 	word_list = []
@@ -16,11 +16,13 @@ def _get_useful_column_ud(sentence, tokenizer):
 		vn_pos_list.append(word[4])
 		head_index_list.append(int(word[6]))
 		dependency_label_list.append(word[7])
-		lab_pos_list.append(word[10])
-		# lab_pos_list.append('-')
+		if config.pos_type == 'vn':
+			lab_pos_list.append('-')
+		else:
+			lab_pos_list.append(word[10])
 	return Sentence(word_list, vn_pos_list, lab_pos_list, head_index_list, dependency_label_list, tokenizer)
 
-def read_data(filename, tokenizer):
+def read_data(filename, tokenizer, config):
 	sentence_count = 0
 	input_file = open(filename, encoding='utf-8')
 	sentence_list = []
@@ -31,13 +33,13 @@ def read_data(filename, tokenizer):
 		line = line.strip()
 		if line == '' or line == '\n':
 			if len(sentence) > 1:
-				sentence_list.append(_get_useful_column_ud(sentence, tokenizer))
+				sentence_list.append(_get_useful_column_ud(sentence, tokenizer, config))
 				sentence = []
 				sentence_count += 1
 		else:
 			sentence.append(line.split('\t'))
 	if len(sentence) > 1:
-		sentence_list.append(_get_useful_column_ud(sentence, tokenizer))
+		sentence_list.append(_get_useful_column_ud(sentence, tokenizer, config))
 	utils.log('Read file:', filename)
 	utils.log('Number of sentence:', len(sentence_list))
 	return sentence_list

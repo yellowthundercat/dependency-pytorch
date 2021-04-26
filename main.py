@@ -37,8 +37,11 @@ class DependencyParser:
 			print('We will train model from scratch')
 			utils_train.init_model(self, config)
 		self.model.to(self.device)
+		self.model_pos.to(self.device)
 		if config.cross_view:
 			for model_student in self.model_students:
+				model_student.to(self.device)
+			for model_student in self.model_students_pos:
 				model_student.to(self.device)
 
 	def internal_train_student(self, words, phobert_embs, tags, chars, heads, labels, masks):
@@ -77,8 +80,15 @@ class DependencyParser:
 		self.optimizer.zero_grad()
 		loss.backward()
 		self.optimizer.step()
-		if self.config.use_momentum:
-			self.scheduler.step()
+
+		if self.config.train_pos:
+			loss_pos = self.model_pos(words, phobert_embs, tags, chars, masks)
+			self.optimizer_pos.zero_grad()
+			loss_pos.backward()
+			self.optimizer_pos.step()
+			if self.config.use_momentum:
+				self.scheduler_pos.step()
+			return loss.item(), loss_pos.item()
 		return loss.item()
 
 	def get_train_batch(self, batches, is_label=True):
@@ -96,8 +106,8 @@ class DependencyParser:
 		print('start training')
 
 		history = defaultdict(list)
-		total_teacher_loss = total_student_loss = 0
-		count_teacher = count_student = 0
+		total_teacher_loss = total_teacher_loss_pos = total_student_loss = 0
+		count_teacher = count_teacher_pos = count_student = 0
 		train_batches = self.corpus.train.batches(self.config.batch_size, length_ordered=self.config.length_ordered)
 		if self.config.cross_view:
 			unlabel_batches = self.unlabel_corpus.dataset.batches(self.config.batch_size, length_ordered=self.config.length_ordered)
@@ -108,7 +118,13 @@ class DependencyParser:
 			if global_step <= self.config.teacher_only_step or global_step % 2 == 1 or self.config.cross_view is False:
 				# train teacher
 				train_batch, train_batches = self.get_train_batch(train_batches, is_label=True)
-				total_teacher_loss += self.train_teacher(train_batch)
+				if self.config.train_pos:
+					loss, loss_pos = self.train_teacher(train_batch)
+					total_teacher_loss_pos += loss_pos
+					count_teacher_pos += 1
+				else:
+					loss = self.train_teacher(train_batch)
+				total_teacher_loss += loss
 				count_teacher += 1
 			else:
 				# train student
@@ -124,12 +140,14 @@ class DependencyParser:
 			if global_step % self.config.print_step == 0 or global_step == self.config.max_step:
 				t1 = time.time()
 				teacher_loss = total_teacher_loss/max(1, count_teacher)
+				teacher_loss_pos = total_teacher_loss_pos/max(1, count_teacher_pos)
 				student_loss = total_student_loss/max(1, count_student)
 				if self.config.cross_view:
 					print(f'Step {global_step}: teacher loss = {teacher_loss:.4f}, student loss = {student_loss:.4f}, time = {t1 - t0:.4f}')
 				else:
-					print(
-						f'Step {global_step}: train loss = {teacher_loss:.4f}, time = {t1 - t0:.4f}')
+					print(f'Step {global_step}: train loss = {teacher_loss:.4f}, time = {t1 - t0:.4f}')
+				if self.config.train_pos:
+					print(f'pos loss = {teacher_loss_pos:.4f}')
 				t0 = time.time()
 				total_teacher_loss = total_student_loss = 0
 				count_teacher = count_student = 0
@@ -168,7 +186,7 @@ class DependencyParser:
 		self.evaluate(use_best=False)
 		self.evaluate()
 		if self.config.cross_view:
-			for model_index in range(5):
+			for model_index, student_model in enumerate(self.model_students):
 				self.evaluate(model_index)
 
 	def check_dev(self, model, mode):
