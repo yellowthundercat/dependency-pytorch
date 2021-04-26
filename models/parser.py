@@ -4,6 +4,7 @@ from torch import nn
 from models.scorer import BiaffineScorer
 
 from utils.mst import mst
+from models.utils import get_input_dim, get_dependency_encoder_repr
 
 class Parser(nn.Module):
 
@@ -15,37 +16,16 @@ class Parser(nn.Module):
 
 		# Sentence encoder module.
 		self.encoder = encoder
-		# Edge scoring module.
-		scorer_size = config.rnn_size
-		if head_repr_type == 'uni_bi':
-			scorer_size = 4 * config.rnn_size
-		if head_repr_type == 'bi':
-			scorer_size = 2 * config.rnn_size
-		if config.encoder == 'transformer':
-			scorer_size = encoder.out_dim
+		scorer_size = get_input_dim(config, head_repr_type)
 		self.scorer = BiaffineScorer(config, scorer_size, n_label, dropout)
 
 		# Loss function that we will use during training.
 		self.loss = torch.nn.CrossEntropyLoss(reduction='none')
 
-	def get_repr_from_mode(self, rnn1_out, rnn2_out, uni_fw, uni_bw, mode):
-		if mode == 'bi':
-			return rnn2_out
-		if mode == 'uni_bi':
-			return torch.cat([rnn1_out, rnn2_out], dim=2)
-		if mode == 'uni_fw':
-			return uni_fw
-		return uni_bw
-
-	def get_encoder_repr(self, rnn1_out, rnn2_out, uni_fw, uni_bw):
-		head_repr = self.get_repr_from_mode(rnn1_out, rnn2_out, uni_fw, uni_bw, self.head_repr_type)
-		dep_repr = self.get_repr_from_mode(rnn1_out, rnn2_out, uni_fw, uni_bw, self.dep_repr_type)
-		return head_repr, dep_repr
-
 	def get_scorer_repr(self, words, phobert_embs, postags, chars):
 		if self.config.encoder == 'biLSTM':
 			rnn1_out, rnn2_out, uni_fw, uni_bw = self.encoder(words, phobert_embs, postags, chars)
-			head_repr, dep_repr = self.get_encoder_repr(rnn1_out, rnn2_out, uni_fw, uni_bw)
+			head_repr, dep_repr = get_dependency_encoder_repr(self.head_repr_type, self.dep_repr_type, rnn1_out, rnn2_out, uni_fw, uni_bw)
 		else:
 			head_repr = dep_repr = self.encoder(words, phobert_embs, postags, chars)
 		arc_score, lab_score = self.scorer(head_repr, dep_repr)

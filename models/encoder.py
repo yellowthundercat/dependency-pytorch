@@ -43,7 +43,6 @@ class RNNEncoder(nn.Module):
 			self.rnn2 = nn.LSTM(input_size=2*config.rnn_size, hidden_size=config.rnn_size, batch_first=True, bidirectional=True,
 													dropout=config.teacher_dropout, num_layers=config.rnn_depth-1)
 		else:
-			self.out_dim = config.transformer_dim
 			self.transformer = TransformerEncoder(input_dim, config.transformer_layer, config.transformer_dim,
 																						config.transformer_ff_dim, config.transformer_head, config.transformer_dropout)
 
@@ -93,19 +92,15 @@ class RNNEncoder(nn.Module):
 		if self.config.use_charCNN:
 			char_emb = self.charCNN_embedding(chars)
 			word_emb = torch.cat([word_emb, char_emb], dim=2)
-
-		if self.training:
-			word_emb = self.word_dropout(word_emb)
+		word_emb = self.word_dropout(word_emb)
 
 		if self.config.encoder == 'biLSTM':
 			rnn1_out, _ = self.rnn1(word_emb)
-			if self.training:
-				rnn1_out = self.rnn1_dropout(rnn1_out)
+			rnn1_out = self.rnn1_dropout(rnn1_out)
 			uni_fw = rnn1_out[:, :, :self.rnn_size]
 			uni_bw = rnn1_out[:, :, self.rnn_size:]
 			rnn2_out, _ = self.rnn2(rnn1_out)
-			if self.training:
-				rnn2_out = self.rnn2_dropout(rnn2_out)
+			rnn2_out = self.rnn2_dropout(rnn2_out)
 			return rnn1_out, rnn2_out, uni_fw, uni_bw
 		else:
 			return self.transformer(word_emb, aux)
