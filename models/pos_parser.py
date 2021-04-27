@@ -16,6 +16,7 @@ class Pos_paser(nn.Module):
 		self.scorer = nn.Linear(config.pos_hidden_dim, vocab_pos_length)
 
 		self.dropout = nn.Dropout(p=dropout)
+		self.softmax = nn.Softmax(dim=2)
 		self.loss = torch.nn.CrossEntropyLoss(reduction='none')
 
 	def get_predict(self, words, phobert_embs, chars):
@@ -26,7 +27,7 @@ class Pos_paser(nn.Module):
 			sen_repr = self.encoder(words, phobert_embs, [], chars)
 		hid_emb = self.project(sen_repr)
 		hid_emb = self.dropout(hid_emb)
-		predict = self.scorer(hid_emb)
+		predict = self.softmax(self.scorer(hid_emb))
 		return predict
 
 	def forward(self, words, phobert_embs, postags, chars, masks):
