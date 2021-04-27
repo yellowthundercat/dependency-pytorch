@@ -16,8 +16,8 @@ class Pos_paser(nn.Module):
 		self.scorer = nn.Linear(config.pos_hidden_dim, vocab_pos_length)
 
 		self.dropout = nn.Dropout(p=dropout)
-		self.softmax = nn.Softmax(dim=2)
-		self.loss = torch.nn.CrossEntropyLoss(reduction='none')
+		self.softmax = nn.LogSoftmax(dim=2)
+		self.loss = nn.NLLLoss(reduction='none')
 
 	def get_predict(self, words, phobert_embs, chars):
 		if self.config.encoder == 'biLSTM':
