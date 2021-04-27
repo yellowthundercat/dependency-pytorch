@@ -18,7 +18,7 @@ class Pos_paser(nn.Module):
 		self.dropout = nn.Dropout(p=dropout)
 		self.loss = torch.nn.CrossEntropyLoss(reduction='none')
 
-	def forward(self, words, phobert_embs, postags, chars, masks):
+	def get_predict(self, words, phobert_embs, postags, chars):
 		if self.config.encoder == 'biLSTM':
 			rnn1_out, rnn2_out, uni_fw, uni_bw = self.encoder(words, phobert_embs, postags, chars)
 			sen_repr = get_repr_from_mode(rnn1_out, rnn2_out, uni_fw, uni_bw, self.repr_type)
@@ -27,6 +27,10 @@ class Pos_paser(nn.Module):
 		hid_emb = self.project(sen_repr)
 		hid_emb = self.dropout(hid_emb)
 		predict = self.scorer(hid_emb)
+		return predict
+
+	def forward(self, words, phobert_embs, postags, chars, masks):
+		predict = self.get_predict(words, phobert_embs, postags, chars)
 		return self.compute_loss(predict, postags, masks)
 
 	def compute_loss(self, predict, postags, masks):
@@ -37,3 +41,16 @@ class Pos_paser(nn.Module):
 		loss = self.loss(predict, postags)
 		avg_loss = loss.dot(masks) / masks.sum()
 		return avg_loss
+
+	def evaluate(self, words, phobert_embs, postags, chars, masks):
+		predict = self.get_predict(words, phobert_embs, postags, chars)
+		n_sentences, n_words, n_label = predict.shape
+		predict = predict.view(n_sentences * n_words, n_label)
+		postags = postags.view(n_sentences * n_words)
+		pad_mask = masks.view(n_sentences * n_words)
+		n_tokens = pad_mask.sum()
+		predictions = predict.argmax(dim=1)
+		n_errors = (predictions != postags).float().dot(pad_mask)
+		return n_tokens.item(), n_errors.item()
+
+

@@ -159,7 +159,10 @@ class DependencyParser:
 			# eval dev
 			if global_step % self.config.eval_dev_every == 0 or global_step == self.config.max_step:
 				print('-' * 20)
-				val_loss, uas, las = self.check_dev(self.model, 'teacher')
+				if self.config.train_pos:
+					val_loss, uas, las = self.check_dev(self.model, 'teacher', self.model_pos)
+				else:
+					val_loss, uas, las = self.check_dev(self.model, 'teacher')
 				history['val_loss'].append(val_loss)
 				history['uas'].append(uas)
 				history['las'].append(las)
@@ -193,9 +196,11 @@ class DependencyParser:
 			for model_index, student_model in enumerate(self.model_students):
 				self.evaluate(model_index)
 
-	def check_dev(self, model, mode):
+	def check_dev(self, model, mode, model_pos=None):
 		stats = Counter()
 		model.eval()
+		if model_pos:
+			model_pos.eval()
 		model.encoder.mode = mode
 		dev_batches = self.corpus.dev.batches(self.config.batch_size, shuffle=False, length_ordered=False)
 		dev_batch_length = 0
@@ -203,6 +208,7 @@ class DependencyParser:
 		dev_length_list = []
 		dev_head_list = []
 		dev_lab_list = []
+		total_pos = total_pos_error = 0
 		with torch.no_grad():
 			for batch in dev_batches:
 				dev_batch_length += 1
@@ -214,10 +220,18 @@ class DependencyParser:
 				dev_word_list += origin_words
 				dev_length_list += lengths
 
+				if model_pos:
+					n_token, n_error = model_pos.evaluate(words, phobert_embs, tags, chars, masks)
+					total_pos += n_token
+					total_pos_error += n_error
+
 		utils.write_conll(self.corpus.vocab, dev_word_list, dev_head_list, dev_lab_list, dev_length_list,
 											self.config.parsing_file)
 		val_loss = stats['val_loss'] / dev_batch_length
 		uas, las = utils.ud_scores(self.config.dev_file, self.config.parsing_file)
+		if model_pos:
+			accuracy = (total_pos - total_pos_error) / total_pos
+			print(f'pos accuracy: {accuracy:.4f}')
 		return val_loss, uas, las
 
 	def evaluate(self, model_type=-1, use_best=True):  # -1 is teacher
