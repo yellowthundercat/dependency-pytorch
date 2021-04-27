@@ -3,7 +3,6 @@ from models.encoder import RNNEncoder
 
 from models.parser import Parser
 from models.pos_parser import Pos_paser
-from models.deep_biaffine import DeepBiaffine
 from utils import optimizer
 
 def init_model_student(main_self, config):
@@ -18,21 +17,9 @@ def init_model_student(main_self, config):
 			Parser(main_self.encoder, len(main_self.corpus.vocab.l2i), config, 'uni_bw', 'uni_fw', config.student_dropout),
 			Parser(main_self.encoder, len(main_self.corpus.vocab.l2i), config, 'uni_bw', 'uni_bw', config.student_dropout)
 		]
-		main_self.model_students_pos = [
-			Pos_paser(config, teacher_encoder, main_self.encoder, False, len(main_self.corpus.vocab.t2i),
-								config.pos_student_dropout),
-			Pos_paser(config, 'uni_fw', main_self.encoder, True, len(main_self.corpus.vocab.t2i),
-								config.pos_student_dropout),
-			Pos_paser(config, 'uni_bw', main_self.encoder, True, len(main_self.corpus.vocab.t2i),
-								config.pos_student_dropout)
-		]
 	else:
 		main_self.model_students = [
 			Parser(main_self.encoder, len(main_self.corpus.vocab.l2i), config, teacher_encoder, teacher_encoder, config.student_dropout),
-		]
-		main_self.model_students_pos = [
-			Pos_paser(config, teacher_encoder, main_self.encoder, False, len(main_self.corpus.vocab.t2i),
-								config.pos_student_dropout)
 		]
 	main_self.optimizer = optimizer.momentum(main_self.model.parameters(), config, config.lr_momentum)
 	main_self.optimizer_students = [optimizer.momentum(model.parameters(), config, config.student_lr_momentum) for model in main_self.model_students]
@@ -40,11 +27,7 @@ def init_model_student(main_self, config):
 	main_self.scheduler_students = [optimizer.momentum_scheduler(opt_student, config) for opt_student in
 																	main_self.optimizer_students]
 	main_self.optimizer_pos = optimizer.momentum(main_self.model_pos.parameters(), config, config.lr_momentum)
-	main_self.optimizer_students_pos = [optimizer.momentum(model.parameters(), config, config.student_lr_momentum) for model
-																	in main_self.model_students_pos]
 	main_self.scheduler_pos = optimizer.momentum_scheduler(main_self.optimizer_pos, config)
-	main_self.scheduler_students_pos = [optimizer.momentum_scheduler(opt_student, config) for opt_student in
-																	main_self.optimizer_students_pos]
 
 def init_model(main_self, config):
 	main_self.encoder = RNNEncoder(config, len(main_self.corpus.vocab.t2i), len(main_self.corpus.vocab.w2i), len(main_self.corpus.vocab.c2i))
@@ -91,12 +74,6 @@ def load_model(main_self, all_model, config):
 		main_self.optimizer_students = all_model['optimizer_students']
 		main_self.scheduler_students = all_model['scheduler_students']
 
-		main_self.model_students_pos = all_model['model_students_pos']
-		for student_model in main_self.model_students_pos:
-			student_model.encoder = main_self.encoder
-		main_self.optimizer_students_pos = all_model['optimizer_students_pos']
-		main_self.scheduler_students_pos = all_model['scheduler_students_pos']
-
 def save_model(main_self, config):
 	all_model = {
 		'encoder': main_self.encoder,
@@ -116,8 +93,4 @@ def save_model(main_self, config):
 		all_model['model_students'] = main_self.model_students
 		all_model['optimizer_students'] = main_self.optimizer_students
 		all_model['scheduler_students'] = main_self.scheduler_students
-
-		all_model['model_students_pos'] = main_self.model_students_pos
-		all_model['optimizer_students_pos'] = main_self.optimizer_students_pos
-		all_model['scheduler_students_pos'] = main_self.scheduler_students_pos
 	torch.save(all_model, main_self.config.model_file)

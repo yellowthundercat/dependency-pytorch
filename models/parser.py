@@ -22,17 +22,17 @@ class Parser(nn.Module):
 		# Loss function that we will use during training.
 		self.loss = torch.nn.CrossEntropyLoss(reduction='none')
 
-	def get_scorer_repr(self, words, phobert_embs, postags, chars):
+	def get_scorer_repr(self, words, phobert_embs, postags, chars, pos_predict):
 		if self.config.encoder == 'biLSTM':
 			rnn1_out, rnn2_out, uni_fw, uni_bw = self.encoder(words, phobert_embs, postags, chars)
 			head_repr, dep_repr = get_dependency_encoder_repr(self.head_repr_type, self.dep_repr_type, rnn1_out, rnn2_out, uni_fw, uni_bw)
 		else:
 			head_repr = dep_repr = self.encoder(words, phobert_embs, postags, chars)
-		arc_score, lab_score = self.scorer(head_repr, dep_repr)
+		arc_score, lab_score = self.scorer(head_repr, dep_repr, pos_predict)
 		return arc_score, lab_score
 
-	def forward(self, words, phobert_embs, postags, chars, heads, labels, masks):
-		arc_score, lab_score = self.get_scorer_repr(words, phobert_embs, postags, chars)
+	def forward(self, words, phobert_embs, postags, chars, heads, labels, masks, pos_predict):
+		arc_score, lab_score = self.get_scorer_repr(words, phobert_embs, postags, chars, pos_predict)
 
 		# We don't want to evaluate the loss or attachment score for the positions
 		# where we have a padding token. So we create a mask that will be zero for those
@@ -87,12 +87,12 @@ class Parser(nn.Module):
 			lab_list.append(labels)
 		return head_list, lab_list
 
-	def predict_batch(self, words, phobert_embs, postags, chars, lengths):
-		arc_score, lab_score = self.get_scorer_repr(words, phobert_embs, postags, chars)
+	def predict_batch(self, words, phobert_embs, postags, chars, lengths, pos_predict):
+		arc_score, lab_score = self.get_scorer_repr(words, phobert_embs, postags, chars, pos_predict)
 		return self.parse_from_score(arc_score, lab_score, lengths)
 
-	def predict_batch_with_loss(self, words, phobert_embs, postags, chars, heads, labels, pad_masks, lengths):
-		arc_score, lab_score = self.get_scorer_repr(words, phobert_embs, postags, chars)
+	def predict_batch_with_loss(self, words, phobert_embs, postags, chars, heads, labels, pad_masks, lengths, pos_predict):
+		arc_score, lab_score = self.get_scorer_repr(words, phobert_embs, postags, chars, pos_predict)
 		loss = self.compute_loss(arc_score, lab_score, heads, labels, pad_masks)
 		head_list, lab_list = self.parse_from_score(arc_score, lab_score, lengths)
 		return loss, head_list, lab_list

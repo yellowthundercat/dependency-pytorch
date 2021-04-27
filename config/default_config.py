@@ -66,8 +66,8 @@ class Config:
 
 		# sentence level
 		self.pos_hidden_dim = 200  # for train pos
+		self.pos_label_dim = 0  # add later in code
 		self.pos_teacher_dropout = 0.33
-		self.pos_student_dropout = 0.5
 		self.length_ordered = False
 		self.teacher_dropout = 0.33
 		self.student_dropout = 0.5
