@@ -1,10 +1,11 @@
 import torch
 from torch import nn
 from models.charCNN import ConvolutionalCharEmbedding
+from models.pos_scorer import Pos_scorer
 from models.other_transformer import TransformerEncoder
 from preprocess.dataset import PAD_INDEX
 
-class RNNEncoder(nn.Module):
+class Encoder(nn.Module):
 
 	def __init__(self, config, pos_vocab_length, word_vocab_length, char_vocab_length):
 		super().__init__()
@@ -39,45 +40,25 @@ class RNNEncoder(nn.Module):
 
 		if config.encoder == 'biLSTM':
 			self.rnn_size = config.rnn_size
-			self.rnn1 = nn.LSTM(input_size=input_dim, hidden_size=config.rnn_size, batch_first=True, bidirectional=True)
-			self.rnn2 = nn.LSTM(input_size=2*config.rnn_size, hidden_size=config.rnn_size, batch_first=True, bidirectional=True,
-													dropout=config.teacher_dropout, num_layers=config.rnn_depth-1)
+			self.rnn1 = nn.LSTM(input_size=input_dim, hidden_size=config.rnn_size, batch_first=True, bidirectional=True,
+													dropout=config.teacher_dropout, num_layers=config.rnn_1_depth)
+			rnn2_input_dim = 2*config.rnn_size
+			if config.train_pos:
+				rnn2_input_dim += pos_vocab_length
+				self.pos_scorer = Pos_scorer(config, 2 * config.rnn_size, True, pos_vocab_length, config.pos_teacher_dropout)
+			self.rnn2 = nn.LSTM(input_size=rnn2_input_dim, hidden_size=config.rnn_size, batch_first=True, bidirectional=True,
+													dropout=config.teacher_dropout, num_layers=config.rnn_2_depth)
 		else:
-			self.transformer = TransformerEncoder(input_dim, config.transformer_layer, config.transformer_dim,
+			self.transformer1 = TransformerEncoder(input_dim, config.transformer_1_depth, config.transformer_dim,
 																						config.transformer_ff_dim, config.transformer_head, config.transformer_dropout)
+			trans2_input_dim = config.transformer_dim
+			if config.train_pos:
+				trans2_input_dim += pos_vocab_length
+				self.pos_scorer = Pos_scorer(config, config.transformer_dim, True, pos_vocab_length, config.pos_teacher_dropout)
+			self.transformer2 = TransformerEncoder(trans2_input_dim, config.transformer_2_depth, config.transformer_dim,
+																						 config.transformer_ff_dim, config.transformer_head, config.transformer_dropout)
 
-	def forward_student_training(self, words, phobert_embs, postags, chars):
-		if self.config.encoder == 'transformer':
-			aux = (words != PAD_INDEX).unsqueeze(-2)  # mask
-		word_emb = self.word_project(words)
-		if self.config.use_phobert:
-			word_emb = torch.cat([word_emb, phobert_embs], dim=2)
-
-		if self.config.use_pos:
-			pos_emb = self.pos_embedding(postags)
-			word_emb = torch.cat([word_emb, pos_emb], dim=2)
-
-		if self.config.use_charCNN:
-			char_emb = self.charCNN_embedding(chars)
-			word_emb = torch.cat([word_emb, char_emb], dim=2)
-
-		word_emb = self.word_dropout_student(word_emb)
-
-		if self.config.encoder == 'biLSTM':
-			rnn1_out, _ = self.rnn1(word_emb)
-			rnn1_out = self.rnn1_dropout_student(rnn1_out)
-			uni_fw = rnn1_out[:, :, :self.rnn_size]
-			uni_bw = rnn1_out[:, :, self.rnn_size:]
-			rnn2_out, _ = self.rnn2(rnn1_out)
-			rnn2_out = self.rnn2_dropout_student(rnn2_out)
-			return rnn1_out, rnn2_out, uni_fw, uni_bw
-		else:
-			return self.transformer(word_emb, aux)
-
-	def forward(self, words, phobert_embs, postags, chars):
-		if self.mode == 'student' and self.training:
-			return self.forward_student_training(words, phobert_embs, postags, chars)
-
+	def forward(self, words, phobert_embs, postags, chars, masks):
 		# Look up
 		if self.config.encoder == 'transformer':
 			aux = (words != PAD_INDEX).unsqueeze(-2)  # mask
@@ -94,13 +75,29 @@ class RNNEncoder(nn.Module):
 			word_emb = torch.cat([word_emb, char_emb], dim=2)
 		word_emb = self.word_dropout(word_emb)
 
+		pos_loss = None
 		if self.config.encoder == 'biLSTM':
 			rnn1_out, _ = self.rnn1(word_emb)
 			rnn1_out = self.rnn1_dropout(rnn1_out)
 			uni_fw = rnn1_out[:, :, :self.rnn_size]
 			uni_bw = rnn1_out[:, :, self.rnn_size:]
-			rnn2_out, _ = self.rnn2(rnn1_out)
+
+			rnn2_in = rnn1_out
+			if self.config.train_pos:
+				pos_loss, pos_predict = self.pos_scorer(rnn1_out, postags, masks)
+				rnn2_in = torch.cat([rnn1_out, pos_predict], dim=2)
+				if self.mode != 'teacher':
+					pos_loss = None
+			rnn2_out, _ = self.rnn2(rnn2_in)
 			rnn2_out = self.rnn2_dropout(rnn2_out)
-			return rnn1_out, rnn2_out, uni_fw, uni_bw
+			return rnn1_out, rnn2_out, uni_fw, uni_bw, pos_loss
 		else:
-			return self.transformer(word_emb, aux)
+			trans1_out = self.transformer1(word_emb, aux)
+			trans2_in = trans1_out
+			if self.config.train_pos:
+				pos_loss, pos_predict = self.pos_scorer(trans1_out, postags, masks)
+				trans2_in = torch.cat([trans1_out, pos_predict], dim=2)
+				if self.mode != 'teacher':
+					pos_loss = None
+			trans2_out = self.transformer2(trans2_in, aux)
+			return trans1_out, trans2_out, pos_loss

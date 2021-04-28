@@ -38,15 +38,10 @@ class BiaffineScorer(nn.Module):
 		super().__init__()
 		self.config = config
 		# Weights for the biaffine part of the model.
-		if config.train_pos:
-			rnn_size += config.pos_label_dim
 		self.arc_biaffine = BiAffine(config, rnn_size, config.arc_mlp_size, 1, dropout)
 		self.lab_biaffine = BiAffine(config, rnn_size, config.lab_mlp_size, n_label, dropout)
 
-	def forward(self, head_repr, dep_repr, pos_predict):
-		if self.config.train_pos:
-			head_repr = torch.cat([head_repr, pos_predict], dim=2)
-			dep_repr = torch.cat([dep_repr, pos_predict], dim=2)
+	def forward(self, head_repr, dep_repr):
 		arc_score = self.arc_biaffine(head_repr)  # [batch, sent_lent, sent_lent] (need transpose)
 		lab_score = self.lab_biaffine(dep_repr)  # [batch, n_label, sent_lent, sent_lent] (need transpose)
 		return arc_score, lab_score

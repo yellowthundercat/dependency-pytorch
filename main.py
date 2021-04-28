@@ -39,17 +39,16 @@ class DependencyParser:
 			print('We will train model from scratch')
 			utils_train.init_model(self, config)
 		self.model.to(self.device)
-		self.model_pos.to(self.device)
 		if config.cross_view:
 			for model_student in self.model_students:
 				model_student.to(self.device)
 
-	def internal_train_student(self, words, phobert_embs, tags, chars, heads, labels, masks, predict_pos):
+	def internal_train_student(self, words, phobert_embs, tags, chars, heads, labels, masks):
 		total_loss = 0
 		for student_model, student_optimizer, student_scheduler in zip(self.model_students, self.optimizer_students, self.scheduler_students):
 			student_model.train()
 			student_model.encoder.mode = 'student'
-			loss = student_model(words, phobert_embs, tags, chars, heads, labels, masks, predict_pos)
+			loss = student_model(words, phobert_embs, tags, chars, heads, labels, masks)
 			student_optimizer.zero_grad()
 			loss.backward()
 			student_optimizer.step()
@@ -57,16 +56,9 @@ class DependencyParser:
 			total_loss += loss.item()
 		return total_loss
 
-	def get_predict_pos(self, words, phobert_embs, chars):
-		if self.config.train_pos is False:
-			return []
-		self.model_pos.eval()
-		return self.model_pos.predict(words, phobert_embs, chars)
-
 	def train_gold_student(self, gold_batch):
 		words, phobert_embs, tags, heads, labels, masks, lengths, origin_words, chars = gold_batch
-		predict_pos = self.get_predict_pos(words, phobert_embs, chars)
-		return self.internal_train_student(words, phobert_embs, tags, chars, heads, labels, masks, predict_pos)
+		return self.internal_train_student(words, phobert_embs, tags, chars, heads, labels, masks)
 
 
 	def train_student(self, unlabel_batch):
@@ -74,38 +66,23 @@ class DependencyParser:
 		self.model.eval()
 		self.model.encoder.mode = 'teacher'
 		words, phobert_embs, tags, heads, labels, masks, lengths, origin_words, chars = unlabel_batch
-		predict_pos = self.get_predict_pos(words, phobert_embs, chars)
-		head_list, lab_list = self.model.predict_batch(words, phobert_embs, tags, chars, lengths, predict_pos)
+		head_list, lab_list = self.model.predict_batch(words, phobert_embs, tags, chars, lengths, masks)
 		predict_heads = dataset.pad([head.tolist() for head in head_list])
 		predict_labels = dataset.pad([lab.tolist() for lab in lab_list])
-		return self.internal_train_student(words, phobert_embs, tags, chars, predict_heads, predict_labels, masks, predict_pos)
+		return self.internal_train_student(words, phobert_embs, tags, chars, predict_heads, predict_labels, masks)
 
 	def train_teacher(self, train_batch):
 		words, phobert_embs, tags, heads, labels, masks, lengths, origin_words, chars = train_batch
 
-		predict_pos = []
-		if self.config.train_pos:
-			self.model_pos.train()
-			loss_pos, predict_pos = self.model_pos(words, phobert_embs, tags, chars, masks)
-			predict_pos = predict_pos.detach()
-			loss_pos *= self.config.pos_lambda
-			self.optimizer_pos.zero_grad()
-			loss_pos.backward()
-			self.optimizer_pos.step()
-			if self.config.use_momentum:
-				self.scheduler_pos.step()
-
 		self.model.train()
 		self.model.encoder.mode = 'teacher'
-		loss = self.model(words, phobert_embs, tags, chars, heads, labels, masks, predict_pos)
+		loss = self.model(words, phobert_embs, tags, chars, heads, labels, masks)
 		self.optimizer.zero_grad()
 		loss.backward()
 		self.optimizer.step()
 		if self.config.use_momentum:
 			self.scheduler.step()
 
-		if self.config.train_pos:
-			return loss.item(), loss_pos.item()
 		return loss.item()
 
 	def get_train_batch(self, batches, is_label=True):
@@ -123,8 +100,8 @@ class DependencyParser:
 		print('start training')
 
 		history = defaultdict(list)
-		total_teacher_loss = total_teacher_loss_pos = total_student_loss = 0
-		count_teacher = count_teacher_pos = count_student = 0
+		total_teacher_loss = total_student_loss = 0
+		count_teacher = count_student = 0
 		train_batches = self.corpus.train.batches(self.config.batch_size, length_ordered=self.config.length_ordered)
 		if self.config.cross_view:
 			unlabel_batches = self.unlabel_corpus.dataset.batches(self.config.batch_size, length_ordered=self.config.length_ordered)
@@ -135,12 +112,7 @@ class DependencyParser:
 			if global_step <= self.config.teacher_only_step or global_step % 2 == 1 or self.config.cross_view is False:
 				# train teacher
 				train_batch, train_batches = self.get_train_batch(train_batches, is_label=True)
-				if self.config.train_pos:
-					loss, loss_pos = self.train_teacher(train_batch)
-					total_teacher_loss_pos += loss_pos
-					count_teacher_pos += 1
-				else:
-					loss = self.train_teacher(train_batch)
+				loss = self.train_teacher(train_batch)
 				total_teacher_loss += loss
 				count_teacher += 1
 			else:
@@ -157,14 +129,11 @@ class DependencyParser:
 			if global_step % self.config.print_step == 0 or global_step == self.config.max_step:
 				t1 = time.time()
 				teacher_loss = total_teacher_loss/max(1, count_teacher)
-				teacher_loss_pos = total_teacher_loss_pos/max(1, count_teacher_pos)
 				student_loss = total_student_loss/max(1, count_student)
 				if self.config.cross_view:
 					print(f'Step {global_step}: teacher loss = {teacher_loss:.4f}, student loss = {student_loss:.4f}, time = {t1 - t0:.4f}')
 				else:
 					print(f'Step {global_step}: train loss = {teacher_loss:.4f}, time = {t1 - t0:.4f}')
-				if self.config.train_pos:
-					print(f'pos loss = {teacher_loss_pos:.4f}')
 				t0 = time.time()
 				total_teacher_loss = total_student_loss = 0
 				count_teacher = count_student = 0
@@ -212,8 +181,6 @@ class DependencyParser:
 	def check_dev(self, model, mode):
 		stats = Counter()
 		model.eval()
-		if self.config.train_pos:
-			self.model_pos.eval()
 		model.encoder.mode = mode
 		dev_batches = self.corpus.dev.batches(self.config.batch_size, shuffle=False, length_ordered=False)
 		dev_batch_length = 0
@@ -227,12 +194,7 @@ class DependencyParser:
 			for batch in dev_batches:
 				dev_batch_length += 1
 				words, phobert_embs, tags, heads, labels, masks, lengths, origin_words, chars = batch
-				if self.config.train_pos:
-					n_token, n_error, pos_predict = self.model_pos.evaluate(words, phobert_embs, tags, chars, masks)
-					total_pos += n_token
-					total_pos_error += n_error
-
-				loss, head_list, lab_list = model.predict_batch_with_loss(words, phobert_embs, tags, chars, heads, labels, masks, lengths, pos_predict)
+				loss, head_list, lab_list = model.predict_batch_with_loss(words, phobert_embs, tags, chars, heads, labels, masks, lengths)
 				stats['val_loss'] += loss.item()
 				dev_head_list += head_list
 				dev_lab_list += lab_list
@@ -243,9 +205,6 @@ class DependencyParser:
 											self.config.parsing_file)
 		val_loss = stats['val_loss'] / dev_batch_length
 		uas, las = utils.ud_scores(self.config.dev_file, self.config.parsing_file)
-		if self.config.train_pos:
-			accuracy = (total_pos - total_pos_error) / total_pos
-			print(f'pos accuracy: {accuracy:.4f}')
 		return val_loss, uas, las
 
 	def evaluate(self, model_type=-1, use_best=True):  # -1 is teacher
@@ -275,8 +234,7 @@ class DependencyParser:
 			for batch in test_batches:
 				test_batch_length += 1
 				words, phobert_embs, tags, heads, labels, masks, lengths, origin_words, chars = batch
-				predict_pos = self.get_predict_pos(words, phobert_embs, chars)
-				head_list, lab_list = self.model.predict_batch(words, phobert_embs, tags, chars, lengths, predict_pos)
+				head_list, lab_list = self.model.predict_batch(words, phobert_embs, tags, chars, lengths, masks)
 				gold_head_list += [head.data.numpy()[:lent] for head, lent in zip(heads.cpu(), lengths)]
 				gold_lab_list += [lab.data.numpy()[:lent] for lab, lent in zip(labels.cpu(), lengths)]
 				pos_list += [tag.data.numpy()[:lent] for tag, lent in zip(tags.cpu(), lengths)]

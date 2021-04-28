@@ -75,10 +75,12 @@ class Config:
 		self.lab_mlp_size = 100
 
 		# encoder
-		self.encoder = 'transformer'  # biLSTM, transformer
+		self.encoder = 'biLSTM'  # biLSTM, transformer
 		self.rnn_size = 300  # output encode = 4*rnn_size (2 biLSTM)
-		self.rnn_depth = 3
-		self.transformer_layer = 3
+		self.rnn_1_depth = 1
+		self.rnn_2_depth = 2
+		self.transformer_1_depth = 1
+		self.transformer_2_depth = 2
 		self.transformer_dim = 256
 		self.transformer_head = 2
 		self.transformer_ff_dim = 512
