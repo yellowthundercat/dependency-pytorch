@@ -188,7 +188,6 @@ class DependencyParser:
 		dev_length_list = []
 		dev_head_list = []
 		dev_lab_list = []
-		pos_predict = []
 		total_pos = total_pos_error = 0
 		with torch.no_grad():
 			for batch in dev_batches:
@@ -201,6 +200,14 @@ class DependencyParser:
 				dev_word_list += origin_words
 				dev_length_list += lengths
 
+				if self.config.train_pos:
+					n_token, n_error, _ = self.model.encoder.evaluate_pos(words, phobert_embs, tags, chars, masks)
+					total_pos += n_token
+					total_pos_error += n_error
+
+		if self.config.train_pos:
+			accuracy = (total_pos - total_pos_error) / total_pos
+			print(f'pos accuracy: {accuracy:.4f}')
 		utils.write_conll(self.corpus.vocab, dev_word_list, dev_head_list, dev_lab_list, dev_length_list,
 											self.config.parsing_file)
 		val_loss = stats['val_loss'] / dev_batch_length

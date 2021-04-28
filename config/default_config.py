@@ -53,6 +53,7 @@ class Config:
 
 		# word level
 		self.use_first_layer = False
+		self.use_predicted_pos_softmax = True
 		self.phobert_layer = 9  # range: [0, ..., 12]
 		# attention requires format: [(a,b), (a,b)] with a is hidden layer, b is head, if b is '*' = get all
 		# range: [(0..11, 0..11 or *)]
@@ -67,20 +68,20 @@ class Config:
 		# sentence level
 		self.pos_hidden_dim = 200  # for train pos
 		self.pos_label_dim = 0  # add later in code
-		self.pos_teacher_dropout = 0.33
+		self.pos_teacher_dropout = 0.2
 		self.length_ordered = False
-		self.teacher_dropout = 0.33
-		self.student_dropout = 0.5
+		self.teacher_dropout = 0.2
+		self.student_dropout = 0.4
 		self.arc_mlp_size = 300
 		self.lab_mlp_size = 100
 
 		# encoder
 		self.encoder = 'biLSTM'  # biLSTM, transformer
 		self.rnn_size = 300  # output encode = 4*rnn_size (2 biLSTM)
-		self.rnn_1_depth = 1
-		self.rnn_2_depth = 2
-		self.transformer_1_depth = 1
-		self.transformer_2_depth = 2
+		self.rnn_1_depth = 2
+		self.rnn_2_depth = 1
+		self.transformer_1_depth = 2
+		self.transformer_2_depth = 1
 		self.transformer_dim = 256
 		self.transformer_head = 2
 		self.transformer_ff_dim = 512
