@@ -7,7 +7,7 @@ class Config:
 		self.mode = 'train'  # option: 'train', 'evaluate', 'annotate'
 		self.continue_train = False
 		self.use_small_subset = True
-		self.train_pos = True
+		self.train_pos = False
 		self.use_pos = True  # not use pos when train pos
 		if self.train_pos is True:
 			self.use_pos = False
@@ -53,7 +53,7 @@ class Config:
 
 		# word level
 		self.use_first_layer = False
-		self.use_predicted_pos_softmax = True
+		self.use_predicted_pos_softmax = False
 		self.phobert_layer = 9  # range: [0, ..., 12]
 		# attention requires format: [(a,b), (a,b)] with a is hidden layer, b is head, if b is '*' = get all
 		# range: [(0..11, 0..11 or *)]
@@ -70,8 +70,8 @@ class Config:
 		self.pos_label_dim = 0  # add later in code
 		self.pos_teacher_dropout = 0.2
 		self.length_ordered = False
-		self.teacher_dropout = 0.2
-		self.student_dropout = 0.4
+		self.teacher_dropout = 0.33
+		self.student_dropout = 0.5
 		self.arc_mlp_size = 300
 		self.lab_mlp_size = 100
 
@@ -89,7 +89,7 @@ class Config:
 
 
 		# train
-		self.max_step = 10000
+		self.max_step = 20000
 		self.max_waiting_step = 20000  # if not improve in this period -> stop
 		self.teacher_only_step = 50
 		self.batch_size = 64
