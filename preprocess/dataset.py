@@ -300,7 +300,7 @@ class Dataset:
 					phobert_embs = pad_word_embedding(self.phobert_embs[i:i + batch_size], self.config)
 				else:
 					embedding = []
-					phobert_batch_order = list(range(i, i+batch_size, self.config.phobert_batch_size))
+					phobert_batch_order = list(range(i, min(i+batch_size, n), self.config.phobert_batch_size))
 					for e_i in phobert_batch_order:
 						embedding += self.get_phobert_embedding(e_i, min(e_i+self.config.phobert_batch_size, i+batch_size))
 					phobert_embs = pad_word_embedding(embedding, self.config)
