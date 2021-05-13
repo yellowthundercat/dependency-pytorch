@@ -76,7 +76,10 @@ class Encoder(nn.Module):
 		if self.config.use_charCNN:
 			char_emb = self.charCNN_embedding(chars)
 			word_emb = torch.cat([word_emb, char_emb], dim=2)
-		word_emb = self.word_dropout(word_emb)
+		if self.mode == 'teacher':
+			word_emb = self.word_dropout(word_emb)
+		else:
+			word_emb = self.word_dropout_student(word_emb)
 		return word_emb
 
 	def forward(self, words, phobert_embs, postags, chars, masks):
@@ -85,7 +88,10 @@ class Encoder(nn.Module):
 		pos_loss = None
 		if self.config.encoder == 'biLSTM':
 			rnn1_out, _ = self.rnn1(word_emb)
-			rnn1_out = self.rnn1_dropout(rnn1_out)
+			if self.mode == 'teacher':
+				rnn1_out = self.rnn1_dropout(rnn1_out)
+			else:
+				rnn1_out = self.rnn1_dropout_student(rnn1_out)
 			uni_fw = rnn1_out[:, :, :self.rnn_size]
 			uni_bw = rnn1_out[:, :, self.rnn_size:]
 
@@ -98,7 +104,10 @@ class Encoder(nn.Module):
 				if self.mode != 'teacher':
 					pos_loss = None
 			rnn2_out, _ = self.rnn2(rnn2_in)
-			rnn2_out = self.rnn2_dropout(rnn2_out)
+			if self.mode == 'teacher':
+				rnn2_out = self.rnn2_dropout(rnn2_out)
+			else:
+				rnn2_out = self.rnn2_dropout_student(rnn2_out)
 			return rnn1_out, rnn2_out, uni_fw, uni_bw, pos_loss
 		else:
 			aux = (words != PAD_INDEX).unsqueeze(-2)  # mask

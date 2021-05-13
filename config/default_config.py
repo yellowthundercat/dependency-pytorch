@@ -11,10 +11,10 @@ class Config:
 		self.use_pos = True  # not use pos when train pos
 		if self.train_pos is True:
 			self.use_pos = False
-		self.pos_type = 'vn'  # vn, uni, lab
+		self.pos_type = 'lab'  # vn, uni, lab
 		self.use_phobert = True
 		self.use_charCNN = True
-		self.cross_view = False
+		self.cross_view = True
 
 		# file location
 		self.data_folder = 'data'
@@ -103,7 +103,7 @@ class Config:
 			self.teacher_only_step = 0
 
 		# cross-view
-		self.gold_student_step = 5
+		self.gold_student_step = 10000000
 		self.print_dev_student = True
 
 		# optimizer

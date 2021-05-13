@@ -19,11 +19,12 @@ class BiAffine(nn.Module):
 	def forward(self, sentence_repr):
 		R_head = self.head_mlp(sentence_repr)
 		R_dep = self.dep_mlp(sentence_repr)
-		R_head = self.head_dropout(R_head)
-		R_dep = self.dep_dropout(R_dep)
 		# add bias
 		R_head = torch.cat([R_head, R_head.new_ones(*R_head.size()[:-1], 1)], len(R_head.size()) - 1)
 		R_dep = torch.cat([R_dep, R_dep.new_ones(*R_dep.size()[:-1], 1)], len(R_dep.size()) - 1)
+
+		R_head = self.head_dropout(R_head)
+		R_dep = self.dep_dropout(R_dep)
 
 		# calculate
 		R_head = R_head.unsqueeze(1)
