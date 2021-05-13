@@ -76,11 +76,14 @@ def pad_mask(batch):
 def default_value():
 	return UNK_INDEX
 
+def zero_func():
+	return 0
+
 class Vocab:
 	def __init__(self, config, sentence_list):
 		self.config = config
 		self.w2i = defaultdict(default_value)
-		self.pre_w = defaultdict(lambda :0)
+		self.pre_w = defaultdict(zero_func)
 		self.t2i = defaultdict(default_value)
 		self.l2i = defaultdict(default_value)
 		self.c2i = defaultdict(default_value)
@@ -332,9 +335,11 @@ class Corpus:
 		if os.path.exists(config.vocab_file):
 			self.vocab = torch.load(config.vocab_file)
 		else:
-			self.vocab = Vocab(config, train_list + dev_list + test_list)
-		self.train = Dataset(config, train_list, self.vocab, phobert, device, False, cache_embedding=True)
-		self.dev = Dataset(config, dev_list, self.vocab, phobert, device, True, cache_embedding=True)
+			self.vocab = Vocab(config, train_list)
+			torch.save(self.vocab, config.vocab_file)
+		if config.mode == 'train':
+			self.train = Dataset(config, train_list, self.vocab, phobert, device, False, cache_embedding=True)
+			self.dev = Dataset(config, dev_list, self.vocab, phobert, device, True, cache_embedding=True)
 		self.test = Dataset(config, test_list, self.vocab, phobert, device, True, cache_embedding=False)
 
 class Unlabel_Corpus:

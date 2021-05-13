@@ -82,11 +82,10 @@ class Config:
 		self.rnn_2_depth = 1
 		self.transformer_1_depth = 2
 		self.transformer_2_depth = 1
-		self.transformer_dim = 256
+		self.transformer_dim = 128
 		self.transformer_head = 2
-		self.transformer_ff_dim = 512
+		self.transformer_ff_dim = 256
 		self.transformer_dropout = 0.2
-
 
 		# train
 		self.max_step = 20000
