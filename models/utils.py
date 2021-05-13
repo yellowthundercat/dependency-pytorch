@@ -12,6 +12,8 @@ def get_input_dim(config, repr_type):
 	return scorer_size
 
 def get_repr_from_mode(rnn1_out, rnn2_out, uni_fw, uni_bw, mode):
+	if mode == 'uni':
+		return rnn1_out
 	if mode == 'bi':
 		return rnn2_out
 	if mode == 'uni_bi':

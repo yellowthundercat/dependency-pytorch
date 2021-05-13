@@ -7,8 +7,8 @@ class Config:
 		self.mode = 'train'  # option: 'train', 'evaluate', 'annotate'
 		self.continue_train = False
 		self.use_small_subset = True
-		self.train_pos = True
-		self.use_pos = False  # not use pos when train pos
+		self.train_pos = False
+		self.use_pos = True  # not use pos when train pos
 		if self.train_pos is True:
 			self.use_pos = False
 		self.pos_type = 'vn'  # vn, uni, lab
@@ -53,6 +53,7 @@ class Config:
 
 		# word level
 		self.use_first_layer = False
+		self.use_predicted_pos_softmax = False
 		self.phobert_layer = 9  # range: [0, ..., 12]
 		# attention requires format: [(a,b), (a,b)] with a is hidden layer, b is head, if b is '*' = get all
 		# range: [(0..11, 0..11 or *)]
@@ -66,8 +67,8 @@ class Config:
 
 		# sentence level
 		self.pos_hidden_dim = 200  # for train pos
-		self.pos_teacher_dropout = 0.33
-		self.pos_student_dropout = 0.5
+		self.pos_label_dim = 0  # add later in code
+		self.pos_teacher_dropout = 0.2
 		self.length_ordered = False
 		self.teacher_dropout = 0.33
 		self.student_dropout = 0.5
@@ -77,8 +78,10 @@ class Config:
 		# encoder
 		self.encoder = 'biLSTM'  # biLSTM, transformer
 		self.rnn_size = 300  # output encode = 4*rnn_size (2 biLSTM)
-		self.rnn_depth = 3
-		self.transformer_layer = 3
+		self.rnn_1_depth = 2
+		self.rnn_2_depth = 1
+		self.transformer_1_depth = 2
+		self.transformer_2_depth = 1
 		self.transformer_dim = 256
 		self.transformer_head = 2
 		self.transformer_ff_dim = 512
@@ -86,7 +89,7 @@ class Config:
 
 
 		# train
-		self.max_step = 10000
+		self.max_step = 20000
 		self.max_waiting_step = 20000  # if not improve in this period -> stop
 		self.teacher_only_step = 50
 		self.batch_size = 64
@@ -109,6 +112,7 @@ class Config:
 		self.use_momentum = True  # crossview must use
 		self.lr_momentum = 0.5  # base learning rate
 		self.student_lr_momentum = 0.2
+		self.pos_lambda = 1
 		self.momentum = 0.9  # momentum
 		self.grad_clip = 1.0  # maximum gradient norm during optimization
 		self.warm_up_steps = 5000.0  # linearly ramp up the lr for this many steps

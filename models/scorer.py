@@ -36,7 +36,7 @@ class BiaffineScorer(nn.Module):
 
 	def __init__(self, config, rnn_size, n_label, dropout):
 		super().__init__()
-
+		self.config = config
 		# Weights for the biaffine part of the model.
 		self.arc_biaffine = BiAffine(config, rnn_size, config.arc_mlp_size, 1, dropout)
 		self.lab_biaffine = BiAffine(config, rnn_size, config.lab_mlp_size, n_label, dropout)
