@@ -4,6 +4,7 @@ from models.charCNN import ConvolutionalCharEmbedding
 from models.pos_scorer import Pos_scorer
 from models.other_transformer import TransformerEncoder
 from preprocess.dataset import PAD_INDEX
+from transformers import AutoModel
 
 class Encoder(nn.Module):
 
@@ -14,7 +15,8 @@ class Encoder(nn.Module):
 
 		self.word_project = nn.Embedding(word_vocab_length, config.word_emb_dim)
 
-		# POS-tag embeddings will always be trained from scratch.
+		if config.use_phobert:
+			self.phobert = AutoModel.from_pretrained("vinai/phobert-base", output_hidden_states=True)
 		if config.use_pos:
 			self.pos_embedding = nn.Embedding(pos_vocab_length, config.pos_emb_dim)
 		if config.use_charCNN:
@@ -58,12 +60,32 @@ class Encoder(nn.Module):
 				self.transformer2 = TransformerEncoder(trans2_input_dim, config.transformer_2_depth, config.transformer_dim,
 																						 config.transformer_ff_dim, config.transformer_head, config.transformer_dropout)
 
-	def forward_emb(self, words, phobert_embs, postags, chars):
+	def forward_emb(self, words, index_ids, last_index_position, postags, chars):
 		# Look up
 		word_emb = None
 		if self.config.use_word_emb_scratch:
 			word_emb = self.word_project(words)
 		if self.config.use_phobert:
+			origin_features = self.phobert(index_ids)
+			features = origin_features[2][self.config.phobert_layer]
+			phobert_embs = []
+			for sentence_index in range(last_index_position.size(0)):
+				phobert_embedding = []
+				last_index_position_list = last_index_position[sentence_index]
+				for word_index in range(last_index_position.size(1) - 2):
+					start_index = last_index_position_list[word_index]
+					end_index = last_index_position_list[word_index + 1]
+					if end_index > start_index:
+						if self.config.phobert_subword == 'first':
+							end_index = start_index + 1
+						one_emb = features[sentence_index][start_index:end_index]
+						# one_emb = torch.sum(one_emb, 0).cpu().data.numpy().tolist()
+						one_emb = torch.sum(one_emb, 0)
+					else:
+						one_emb = torch.zeros(self.config.phobert_dim)
+					phobert_embedding.append(one_emb)
+				phobert_embs.append(torch.stack(phobert_embedding, dim=0))
+			phobert_embs = torch.stack(phobert_embs, dim=0)
 			if word_emb is not None:
 				word_emb = torch.cat([word_emb, phobert_embs], dim=2)
 			else:
@@ -86,8 +108,8 @@ class Encoder(nn.Module):
 			word_emb = torch.cat([word_emb, pos_emb], dim=2)
 		return word_emb
 
-	def forward(self, words, phobert_embs, postags, chars, masks):
-		word_emb = self.forward_emb(words, phobert_embs, postags, chars)
+	def forward(self, words, index_ids, last_index_position, postags, chars, masks):
+		word_emb = self.forward_emb(words, index_ids, last_index_position, postags, chars)
 
 		pos_loss = None
 		if self.config.encoder == 'biLSTM':

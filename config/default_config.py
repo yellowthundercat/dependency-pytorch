@@ -49,6 +49,7 @@ class Config:
 		self.concat_first_layer = False
 		self.phobert_layer = -1  # range: [0, ..., 12]
 		self.phobert_subword = 'first'  # sum or first
+		self.fine_tune = True
 		self.word_emb_dim = 100
 		self.minimum_frequency = 2
 		self.phobert_dim = 768
@@ -79,7 +80,6 @@ class Config:
 		self.max_waiting_step = 20000  # if not improve in this period -> stop
 		self.teacher_only_step = 50
 		self.batch_size = 64
-		self.phobert_batch_size = 32
 		self.print_step = 50
 		self.eval_dev_every = 500  # how often to evaluate on the dev set
 		if self.use_small_subset:
@@ -107,5 +107,5 @@ class Config:
 		self.lr_decay = 0.005  # factor for gradually decaying the lr
 
 		# other
-		self.seed = 26052020
+		self.seed = 1234
 		self.error_order = False
