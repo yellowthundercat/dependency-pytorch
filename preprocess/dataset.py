@@ -289,7 +289,7 @@ class Dataset:
 			self.order()
 		for i in batch_order:
 			words = pad(self.words[i:i + batch_size])
-			index_ids = pad_phobert(self.input_ids[i:i + batch_size])
+			index_ids = pad_phobert(self.input_ids[i:i + batch_size]).to(self.device)
 			last_index_position = pad(self.last_index_position[i:i + batch_size])
 			chars = pad_char(self.chars[i:i + batch_size])
 			tags = pad(self.tags[i:i + batch_size])

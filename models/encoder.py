@@ -82,7 +82,7 @@ class Encoder(nn.Module):
 						# one_emb = torch.sum(one_emb, 0).cpu().data.numpy().tolist()
 						one_emb = torch.sum(one_emb, 0)
 					else:
-						one_emb = torch.zeros(self.config.phobert_dim)
+						one_emb = torch.zeros(self.config.phobert_dim, device=self.device)
 					phobert_embedding.append(one_emb)
 				phobert_embs.append(torch.stack(phobert_embedding, dim=0))
 			phobert_embs = torch.stack(phobert_embs, dim=0)

@@ -37,6 +37,7 @@ class DependencyParser:
 		else:
 			print('We will train model from scratch')
 			utils_train.init_model(self, config)
+		self.encoder.device = self.device
 		self.model.to(self.device)
 		if config.cross_view:
 			for model_student in self.model_students:
