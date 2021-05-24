@@ -141,10 +141,7 @@ class DependencyParser:
 			# eval dev
 			if global_step % self.config.eval_dev_every == 0 or global_step == self.config.max_step:
 				print('-' * 20)
-				if self.config.train_pos:
-					val_loss, uas, las = self.check_dev(self.model, 'teacher')
-				else:
-					val_loss, uas, las = self.check_dev(self.model, 'teacher')
+				val_loss, uas, las = self.check_dev(self.model, 'teacher')
 				history['val_loss'].append(val_loss)
 				history['uas'].append(uas)
 				history['las'].append(las)
@@ -188,7 +185,6 @@ class DependencyParser:
 		dev_length_list = []
 		dev_head_list = []
 		dev_lab_list = []
-		total_pos = total_pos_error = 0
 		with torch.no_grad():
 			for batch in dev_batches:
 				dev_batch_length += 1
@@ -200,14 +196,6 @@ class DependencyParser:
 				dev_word_list += origin_words
 				dev_length_list += lengths
 
-				if self.config.train_pos:
-					n_token, n_error, _ = self.model.encoder.evaluate_pos(words, phobert_embs, tags, chars, masks)
-					total_pos += n_token
-					total_pos_error += n_error
-
-		if self.config.train_pos:
-			accuracy = (total_pos - total_pos_error) / total_pos
-			print(f'pos accuracy: {accuracy:.4f}')
 		utils.write_conll(self.corpus.vocab, dev_word_list, dev_head_list, dev_lab_list, dev_length_list,
 											self.config.parsing_file)
 		val_loss = stats['val_loss'] / dev_batch_length
@@ -219,9 +207,11 @@ class DependencyParser:
 			all_model = torch.load(self.config.model_file)
 			if model_type == -1:
 				self.model = all_model['model']
+				self.model.encoder = all_model['encoder']
 				self.model.encoder.mode = 'teacher'
 			else:
 				self.model = all_model['model_students'][model_type]
+				self.model.encoder = all_model['encoder']
 				self.model.encoder.mode = 'student'
 		else:
 			model_type = 'last train'

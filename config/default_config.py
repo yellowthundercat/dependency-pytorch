@@ -3,18 +3,16 @@ import os
 class Config:
 	def __init__(self):
 		# general
-		self.model_name = 'test_model'
+		self.model_name = 'test_model_biaffine'
 		self.mode = 'train'  # option: 'train', 'evaluate', 'annotate'
 		self.continue_train = False
 		self.use_small_subset = True
-		self.train_pos = False
-		self.use_pos = True  # not use pos when train pos
-		if self.train_pos is True:
-			self.use_pos = False
-		self.pos_type = 'lab'  # vn, uni, lab
+		self.use_pos = True
+		self.pos_type = 'vn'  # vn, uni, lab
+		self.use_word_emb_scratch = False
 		self.use_phobert = True
-		self.use_charCNN = True
-		self.cross_view = True
+		self.use_charCNN = False
+		self.cross_view = False
 
 		# file location
 		self.data_folder = 'data'
@@ -42,23 +40,14 @@ class Config:
 			self.pos_train_file = os.path.join(train_data_folder, 'uni_train.txt')
 			self.pos_dev_file = os.path.join(train_data_folder, 'uni_dev.txt')
 			self.pos_test_file = os.path.join(train_data_folder, 'uni_test.txt')
-		if self.pos_type == 'vn' and self.train_pos is True:
-			self.train_file = self.pos_train_file = os.path.join(train_data_folder, 'gold_train.txt')
-			self.dev_file = self.pos_dev_file = os.path.join(train_data_folder, 'gold_dev.txt')
-			self.pos_test_file = os.path.join(train_data_folder, 'test.txt')
 
 		# for annotation
 		self.input_filename = 'input.txt'
 		self.output_filename = 'output.txt'
 
 		# word level
-		self.use_first_layer = False
-		self.use_predicted_pos_softmax = False
-		self.phobert_layer = 9  # range: [0, ..., 12]
-		# attention requires format: [(a,b), (a,b)] with a is hidden layer, b is head, if b is '*' = get all
-		# range: [(0..11, 0..11 or *)]
-		# self.attention_requires = [(7, '*'), (8, '*')]
-		# self.attention_head_tops = 2
+		self.concat_first_layer = False
+		self.phobert_layer = -1  # range: [0, ..., 12]
 		self.word_emb_dim = 100
 		self.minimum_frequency = 2
 		self.phobert_dim = 768
@@ -66,24 +55,21 @@ class Config:
 		self.charCNN_dim = 0  # set later in code about 150
 
 		# sentence level
-		self.pos_hidden_dim = 200  # for train pos
-		self.pos_label_dim = 0  # add later in code
-		self.pos_teacher_dropout = 0.2
 		self.length_ordered = False
 		self.teacher_dropout = 0.33
 		self.student_dropout = 0.5
-		self.arc_mlp_size = 300
+		self.arc_mlp_size = 500
 		self.lab_mlp_size = 100
 
 		# encoder
 		self.encoder = 'biLSTM'  # biLSTM, transformer
-		self.rnn_size = 300  # output encode = 4*rnn_size (2 biLSTM)
-		self.rnn_1_depth = 2
-		self.rnn_2_depth = 1
+		self.rnn_size = 400  # output encode = 4*rnn_size (2 biLSTM)
+		self.rnn_1_depth = 3
+		self.rnn_2_depth = 0
 		self.transformer_1_depth = 2
-		self.transformer_2_depth = 1
+		self.transformer_2_depth = 2
 		self.transformer_dim = 128
-		self.transformer_head = 2
+		self.transformer_head = 4
 		self.transformer_ff_dim = 256
 		self.transformer_dropout = 0.2
 
@@ -108,7 +94,9 @@ class Config:
 
 		# optimizer
 		# momentum for cross-view training
-		self.use_momentum = True  # crossview must use
+		self.use_momentum = False  # crossview must use
+		if self.cross_view:
+			self.use_momentum = True
 		self.lr_momentum = 0.5  # base learning rate
 		self.student_lr_momentum = 0.2
 		self.pos_lambda = 1

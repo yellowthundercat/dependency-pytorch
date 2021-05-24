@@ -6,7 +6,7 @@ from utils import optimizer
 
 def init_model_student(main_self, config):
 	teacher_encoder = 'bi'
-	if config.use_first_layer:
+	if config.concat_first_layer:
 		teacher_encoder = 'uni_bi'
 	if config.encoder == 'biLSTM':
 		main_self.model_students = [
@@ -28,7 +28,7 @@ def init_model_student(main_self, config):
 
 def init_model(main_self, config):
 	main_self.encoder = Encoder(config, len(main_self.corpus.vocab.t2i), len(main_self.corpus.vocab.w2i), len(main_self.corpus.vocab.c2i))
-	if config.use_first_layer:
+	if config.concat_first_layer:
 		main_self.model = Parser(main_self.encoder, len(main_self.corpus.vocab.l2i), config, 'uni_bi', 'uni_bi', config.teacher_dropout)
 	else:
 		main_self.model = Parser(main_self.encoder, len(main_self.corpus.vocab.l2i), config, 'bi', 'bi', config.teacher_dropout)
