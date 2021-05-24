@@ -98,8 +98,6 @@ class Config:
 		# optimizer
 		# momentum for cross-view training
 		self.use_momentum = False  # crossview should use
-		if self.cross_view:
-			self.use_momentum = True
 		self.lr_momentum = 0.5  # base learning rate
 		self.student_lr_momentum = 0.2
 		self.pos_lambda = 1
