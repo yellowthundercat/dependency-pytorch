@@ -142,12 +142,6 @@ class DependencyParser:
 				total_teacher_loss = total_student_loss = 0
 				count_teacher = count_student = 0
 
-			# eval test
-			if global_step % self.config.eval_test_every == 0:
-				print('-' * 20)
-				self.evaluate()
-				print('-' * 20)
-
 			# eval dev
 			if global_step % self.config.eval_dev_every == 0 or global_step == self.config.max_step:
 				print('-' * 20)
@@ -171,6 +165,11 @@ class DependencyParser:
 				print('-' * 20)
 				if global_step - self.saving_step > self.config.max_waiting_step:
 					break
+
+			# eval test
+			if global_step % self.config.eval_test_every == 0:
+				self.evaluate()
+				print('-' * 20)
 
 		# torch.save(self.config, self.config.config_file)
 		# utils.show_history_graph(history)
