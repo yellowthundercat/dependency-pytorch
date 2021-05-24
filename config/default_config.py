@@ -48,6 +48,7 @@ class Config:
 		# word level
 		self.concat_first_layer = False
 		self.phobert_layer = -1  # range: [0, ..., 12]
+		self.phobert_subword = 'first'  # sum or first
 		self.word_emb_dim = 100
 		self.minimum_frequency = 2
 		self.phobert_dim = 768

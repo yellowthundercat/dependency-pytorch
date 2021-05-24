@@ -243,6 +243,8 @@ class Dataset:
 			for word_index in range(len(last_index_position_list) - 2):
 				start_index = last_index_position_list[word_index]
 				end_index = last_index_position_list[word_index+1]
+				if self.config.phobert_subword == 'first':
+					end_index = start_index + 1
 				word_emb = features[sentence_index-begin_position][start_index:end_index]
 				word_emb = torch.sum(word_emb, 0).cpu().data.numpy().tolist()
 				# word_emb.append(word_format(self.origin_words[sentence_index][word_index], word_index))
