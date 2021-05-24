@@ -168,8 +168,9 @@ class DependencyParser:
 
 			# eval test
 			if global_step % self.config.eval_test_every == 0:
+				print('current best step', self.saving_step)
 				self.evaluate()
-				print('-' * 20)
+				print('-' * 30)
 
 		# torch.save(self.config, self.config.config_file)
 		# utils.show_history_graph(history)
