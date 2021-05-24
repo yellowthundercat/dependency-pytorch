@@ -2,7 +2,7 @@ from collections import defaultdict, Counter
 import os
 import time
 import torch
-from transformers import AutoModel, AutoTokenizer
+from transformers import AutoTokenizer
 
 from config.default_config import Config
 from utils import utils
@@ -46,10 +46,10 @@ class DependencyParser:
 	def internal_train_student(self, words, index_ids, last_index_position, tags, chars, heads, labels, masks):
 		total_loss = 0
 		for student_model, student_optimizer, student_scheduler in zip(self.model_students, self.optimizer_students, self.scheduler_students):
+			student_optimizer.zero_grad()
 			student_model.train()
 			student_model.encoder.mode = 'student'
 			loss = student_model(words, index_ids, last_index_position, tags, chars, heads, labels, masks)
-			student_optimizer.zero_grad()
 			loss.backward()
 			student_optimizer.step()
 			student_scheduler.step()
@@ -72,16 +72,13 @@ class DependencyParser:
 
 	def train_teacher(self, train_batch):
 		words, index_ids, last_index_position, tags, heads, labels, masks, lengths, origin_words, chars = train_batch
-
+		self.optimizer.zero_grad()
 		self.model.train()
 		self.model.encoder.mode = 'teacher'
 		loss = self.model(words, index_ids, last_index_position, tags, chars, heads, labels, masks)
-		self.optimizer.zero_grad()
 		loss.backward()
 		self.optimizer.step()
-		if self.config.use_momentum:
-			self.scheduler.step()
-
+		self.scheduler.step()
 		return loss.item()
 
 	def get_train_batch(self, batches, is_label=True):
@@ -144,6 +141,12 @@ class DependencyParser:
 				t0 = time.time()
 				total_teacher_loss = total_student_loss = 0
 				count_teacher = count_student = 0
+
+			# eval test
+			if global_step % self.config.eval_test_every == 0:
+				print('-' * 20)
+				self.evaluate()
+				print('-' * 20)
 
 			# eval dev
 			if global_step % self.config.eval_dev_every == 0 or global_step == self.config.max_step:
@@ -213,18 +216,20 @@ class DependencyParser:
 		if use_best:
 			all_model = torch.load(self.config.model_file)
 			if model_type == -1:
-				self.model = all_model['model']
-				self.model.encoder = all_model['encoder']
-				self.model.encoder.mode = 'teacher'
+				model = all_model['model']
+				model.encoder = all_model['encoder']
+				model.encoder.mode = 'teacher'
 			else:
-				self.model = all_model['model_students'][model_type]
-				self.model.encoder = all_model['encoder']
-				self.model.encoder.mode = 'student'
+				model = all_model['model_students'][model_type]
+				model.encoder = all_model['encoder']
+				model.encoder.mode = 'student'
 		else:
 			model_type = 'last train'
-		self.model.to(self.device)
+			model = self.model
+			model.encoder.mode = 'teacher'
+		model.to(self.device)
 		print('evaluating', model_type, 'model')
-		self.model.eval()
+		model.eval()
 		test_batches = self.corpus.test.batches(self.config.batch_size, shuffle=False, length_ordered=False)
 		test_batch_length = 0
 		test_word_list = []
@@ -238,7 +243,7 @@ class DependencyParser:
 			for batch in test_batches:
 				test_batch_length += 1
 				words, index_ids, last_index_position, tags, heads, labels, masks, lengths, origin_words, chars = batch
-				head_list, lab_list = self.model.predict_batch(words, index_ids, last_index_position, tags, chars, lengths, masks)
+				head_list, lab_list = model.predict_batch(words, index_ids, last_index_position, tags, chars, lengths, masks)
 				gold_head_list += [head.data.numpy()[:lent] for head, lent in zip(heads.cpu(), lengths)]
 				gold_lab_list += [lab.data.numpy()[:lent] for lab, lent in zip(labels.cpu(), lengths)]
 				pos_list += [tag.data.numpy()[:lent] for tag, lent in zip(tags.cpu(), lengths)]

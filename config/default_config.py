@@ -79,13 +79,15 @@ class Config:
 		self.max_step = 20000
 		self.max_waiting_step = 20000  # if not improve in this period -> stop
 		self.teacher_only_step = 50
-		self.batch_size = 64
+		self.batch_size = 32
 		self.print_step = 50
 		self.eval_dev_every = 500  # how often to evaluate on the dev set
+		self.eval_test_every = 5000
 		if self.use_small_subset:
 			self.batch_size = 16
 			self.print_step = 2
 			self.eval_dev_every = 10
+			self.eval_test_every = 30
 			self.max_step = 100
 			self.teacher_only_step = 0
 
@@ -95,7 +97,7 @@ class Config:
 
 		# optimizer
 		# momentum for cross-view training
-		self.use_momentum = False  # crossview must use
+		self.use_momentum = False  # crossview should use
 		if self.cross_view:
 			self.use_momentum = True
 		self.lr_momentum = 0.5  # base learning rate
