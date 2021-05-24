@@ -1,7 +1,7 @@
 import math
 import torch
 from torch.optim.lr_scheduler import LambdaLR
-from transformers import AdamW, get_linear_schedule_with_warmup, get_constant_schedule
+from transformers import AdamW
 
 class LRAdamWPolicy(object):
 	def __init__(self, num_warmup_steps, num_training_steps):
@@ -25,9 +25,6 @@ def adamW(model, config, base_lr=1e-5):
 	optimizer = AdamW(
 		optimizer_grouped_parameters, lr=base_lr, correct_bias=False
 	)  # To reproduce BertAdam specific behavior set correct_bias=False
-	scheduler = get_linear_schedule_with_warmup(
-		optimizer, num_warmup_steps=5, num_training_steps=num_train_optimization_steps
-	)
 	scheduler = LambdaLR(optimizer, LRAdamWPolicy(num_warmup_steps=5, num_training_steps=num_train_optimization_steps), -1)
 	return optimizer, scheduler
 
