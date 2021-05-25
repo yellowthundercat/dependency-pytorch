@@ -17,12 +17,15 @@ class LRAdamWPolicy(object):
 def adamW(model, config, base_lr=None):
 	if base_lr is None:
 		base_lr = config.lr_adamw
-	params = model.named_parameters()
-	no_decay = ["bias", "LayerNorm.bias", "LayerNorm.weight"]
-	optimizer_grouped_parameters = [
-		{"params": [p for n, p in params if not any(nd in n for nd in no_decay)], "weight_decay": 0.01},
-		{"params": [p for n, p in params if any(nd in n for nd in no_decay)], "weight_decay": 0.0},
-	]
+	if config.fine_tune:
+		params = model.named_parameters()
+		no_decay = ["bias", "LayerNorm.bias", "LayerNorm.weight"]
+		optimizer_grouped_parameters = [
+			{"params": [p for n, p in params if not any(nd in n for nd in no_decay)], "weight_decay": 0.01},
+			{"params": [p for n, p in params if any(nd in n for nd in no_decay)], "weight_decay": 0.0},
+		]
+	else:
+		optimizer_grouped_parameters = model.parameters()
 	num_train_optimization_steps = 40 * (8000 / config.batch_size)
 	optimizer = AdamW(optimizer_grouped_parameters, betas=config.beta, lr=base_lr, correct_bias=False)
 	# To reproduce BertAdam specific behavior set correct_bias=False
