@@ -49,7 +49,7 @@ class Config:
 		self.concat_first_layer = False
 		self.phobert_layer = -1  # range: [0, ..., 12]
 		self.phobert_subword = 'first'  # sum or first
-		self.fine_tune = True
+		self.fine_tune = False
 		self.word_emb_dim = 100
 		self.minimum_frequency = 2
 		self.phobert_dim = 768
@@ -87,7 +87,7 @@ class Config:
 			self.batch_size = 16
 			self.print_step = 2
 			self.eval_dev_every = 10
-			self.eval_test_every = 30
+			self.eval_test_every = 50
 			self.max_step = 100
 			self.teacher_only_step = 0
 
