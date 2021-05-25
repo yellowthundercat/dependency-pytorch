@@ -43,22 +43,23 @@ class DependencyParser:
 			for model_student in self.model_students:
 				model_student.to(self.device)
 
-	def internal_train_student(self, words, index_ids, last_index_position, tags, chars, heads, labels, masks):
+	def internal_train_student(self, words, index_ids, last_index_position, tags, chars, heads, labels, masks, lengths):
 		total_loss = 0
 		for student_model, student_optimizer, student_scheduler in zip(self.model_students, self.optimizer_students, self.scheduler_students):
 			student_optimizer.zero_grad()
 			student_model.train()
 			student_model.encoder.mode = 'student'
-			loss = student_model(words, index_ids, last_index_position, tags, chars, heads, labels, masks)
+			loss = student_model(words, index_ids, last_index_position, tags, chars, heads, labels, masks, lengths)
 			loss.backward()
 			student_optimizer.step()
-			student_scheduler.step()
+			if self.config.use_scheduler:
+				student_scheduler.step()
 			total_loss += loss.item()
 		return total_loss
 
 	def train_gold_student(self, gold_batch):
 		words, index_ids, last_index_position, tags, heads, labels, masks, lengths, origin_words, chars = gold_batch
-		return self.internal_train_student(words, index_ids, last_index_position, tags, chars, heads, labels, masks)
+		return self.internal_train_student(words, index_ids, last_index_position, tags, chars, heads, labels, masks, lengths)
 
 	def train_student(self, unlabel_batch):
 		# use teacher to predict
@@ -68,17 +69,18 @@ class DependencyParser:
 		head_list, lab_list = self.model.predict_batch(words, index_ids, last_index_position, tags, chars, lengths, masks)
 		predict_heads = dataset.pad([head.tolist() for head in head_list])
 		predict_labels = dataset.pad([lab.tolist() for lab in lab_list])
-		return self.internal_train_student(words, index_ids, last_index_position, tags, chars, predict_heads, predict_labels, masks)
+		return self.internal_train_student(words, index_ids, last_index_position, tags, chars, predict_heads, predict_labels, masks, lengths)
 
 	def train_teacher(self, train_batch):
 		words, index_ids, last_index_position, tags, heads, labels, masks, lengths, origin_words, chars = train_batch
 		self.optimizer.zero_grad()
 		self.model.train()
 		self.model.encoder.mode = 'teacher'
-		loss = self.model(words, index_ids, last_index_position, tags, chars, heads, labels, masks)
+		loss = self.model(words, index_ids, last_index_position, tags, chars, heads, labels, masks, lengths)
 		loss.backward()
 		self.optimizer.step()
-		self.scheduler.step()
+		if self.config.use_scheduler:
+			self.scheduler.step()
 		return loss.item()
 
 	def get_train_batch(self, batches, is_label=True):
@@ -96,12 +98,13 @@ class DependencyParser:
 		print('start training')
 
 		# fine tune bert
-		tsfm = self.encoder.phobert
-		for child in tsfm.children():
-			for param in child.parameters():
-				if not param.requires_grad:
-					print("whoopsies")
-				param.requires_grad = self.config.fine_tune
+		if self.config.use_phobert:
+			tsfm = self.encoder.phobert
+			for child in tsfm.children():
+				for param in child.parameters():
+					if not param.requires_grad:
+						print("whoopsies")
+					param.requires_grad = self.config.fine_tune
 
 		history = defaultdict(list)
 		total_teacher_loss = total_student_loss = 0

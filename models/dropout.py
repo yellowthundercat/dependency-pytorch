@@ -3,7 +3,7 @@ import torch.nn as nn
 
 
 class WordDropout(nn.Module):
-    """A word dropout layer that's designed for embedded inputs (e.g., any inputs to an LSTM layer).
+    """ A word dropout layer that's designed for embedded inputs (e.g., any inputs to an LSTM layer).
     Given a batch of embedded inputs, this layer randomly set some of them to be a replacement state.
     Note that this layer assumes the last dimension of the input to be the hidden dimension of a unit.
     """
@@ -27,13 +27,13 @@ class WordDropout(nn.Module):
         return res
 
     def extra_repr(self):
-        return "p={}".format(self.dropprob)
+        return 'p={}'.format(self.dropprob)
 
 
 class LockedDropout(nn.Module):
     """
     A variant of dropout layer that consistently drops out the same parameters over time. Also known as the variational dropout.
-    This implentation was modified from the LockedDropout implementation in the flair library (https://github.com/zalandoresearch/flair).
+    This implementation was modified from the LockedDropout implementation in the flair library (https://github.com/zalandoresearch/flair).
     """
 
     def __init__(self, dropprob, batch_first=True):
@@ -54,11 +54,11 @@ class LockedDropout(nn.Module):
         return mask * x
 
     def extra_repr(self):
-        return "p={}".format(self.dropprob)
+        return 'p={}'.format(self.dropprob)
 
 
 class SequenceUnitDropout(nn.Module):
-    """A unit dropout layer that's designed for input of sequence units (e.g., word sequence, char sequence, etc.).
+    """ A unit dropout layer that's designed for input of sequence units (e.g., word sequence, char sequence, etc.).
     Given a sequence of unit indices, this layer randomly set some of them to be a replacement id (usually set to be <UNK>).
     """
 
@@ -77,4 +77,5 @@ class SequenceUnitDropout(nn.Module):
         return res
 
     def extra_repr(self):
-        return "p={}, replacement_id={}".format(self.dropprob, self.replacement_id)
+        return 'p={}, replacement_id={}'.format(self.dropprob, self.replacement_id)
+

@@ -1,10 +1,14 @@
 import torch
 from torch import nn
+from torch.nn.utils.rnn import pad_packed_sequence, pack_padded_sequence, pack_sequence, PackedSequence
+import numpy as np
 from models.charCNN import ConvolutionalCharEmbedding
 from models.pos_scorer import Pos_scorer
 from models.other_transformer import TransformerEncoder
 from preprocess.dataset import PAD_INDEX
 from transformers import AutoModel
+from models.dropout import WordDropout
+from models.hlstm import HighwayLSTM
 
 class Encoder(nn.Module):
 
@@ -25,14 +29,10 @@ class Encoder(nn.Module):
 			print('charCNN output size', config.charCNN_dim)
 
 		# dropout
-		self.word_dropout = nn.Dropout(p=config.teacher_dropout)
-		self.pos_dropout = nn.Dropout(p=config.teacher_dropout)
-		self.rnn1_dropout = nn.Dropout(p=config.teacher_dropout)
-		self.rnn2_dropout = nn.Dropout(p=config.teacher_dropout)
-		self.word_dropout_student = nn.Dropout(p=config.student_dropout)
-		self.pos_dropout_student = nn.Dropout(p=config.student_dropout)
-		self.rnn1_dropout_student = nn.Dropout(p=config.student_dropout)
-		self.rnn2_dropout_student = nn.Dropout(p=config.student_dropout)
+		self.dropout = nn.Dropout(p=config.teacher_dropout)
+		self.dropout_student = nn.Dropout(p=config.student_dropout)
+		self.worddrop = WordDropout(config.word_dropout)
+		self.worddrop_student = WordDropout(config.word_dropout_student)
 
 		input_dim = 0
 		if self.config.use_word_emb_scratch:
@@ -44,14 +44,21 @@ class Encoder(nn.Module):
 		if config.use_charCNN:
 			input_dim += config.charCNN_dim
 
+		self.drop_replacement = nn.Parameter(torch.randn(input_dim) / np.sqrt(input_dim))
 		if config.encoder == 'biLSTM':
+			self.input_rnn1_size = input_dim
 			self.rnn_size = config.rnn_size
-			self.rnn1 = nn.LSTM(input_size=input_dim, hidden_size=config.rnn_size, batch_first=True, bidirectional=True,
-													dropout=config.teacher_dropout, num_layers=config.rnn_1_depth)
+			self.parserlstm = HighwayLSTM(input_dim, self.rnn_size, config.rnn_1_depth, batch_first=True, bidirectional=True,
+										  dropout=config.teacher_dropout, rec_dropout=config.rec_dropout, highway_func=torch.tanh)
+			self.parserlstm_h_init = nn.Parameter(torch.zeros(2 * config.rnn_1_depth, 1, config.rnn_size))
+			self.parserlstm_c_init = nn.Parameter(torch.zeros(2 * config.rnn_1_depth, 1, config.rnn_size))
 			if config.rnn_2_depth > 0:
 				rnn2_input_dim = 2*config.rnn_size
-				self.rnn2 = nn.LSTM(input_size=rnn2_input_dim, hidden_size=config.rnn_size, batch_first=True, bidirectional=True,
-														dropout=config.teacher_dropout, num_layers=config.rnn_2_depth)
+				self.parserlstm2 = HighwayLSTM(rnn2_input_dim, self.rnn_size, config.rnn_2_depth, batch_first=True,
+											  bidirectional=True, dropout=config.teacher_dropout, rec_dropout=config.rec_dropout, highway_func=torch.tanh)
+				self.drop_replacement2 = nn.Parameter(torch.randn(rnn2_input_dim) / np.sqrt(rnn2_input_dim))
+				self.parserlstm_h_init2 = nn.Parameter(torch.zeros(2 * config.rnn_2_depth, 1, config.rnn_size))
+				self.parserlstm_c_init2 = nn.Parameter(torch.zeros(2 * config.rnn_2_depth, 1, config.rnn_size))
 		else:
 			self.transformer1 = TransformerEncoder(input_dim, config.transformer_1_depth, config.transformer_dim,
 												   config.transformer_ff_dim, config.transformer_head, config.transformer_dropout)
@@ -60,11 +67,16 @@ class Encoder(nn.Module):
 				self.transformer2 = TransformerEncoder(trans2_input_dim, config.transformer_2_depth, config.transformer_dim,
 																						 config.transformer_ff_dim, config.transformer_head, config.transformer_dropout)
 
-	def forward_emb(self, words, index_ids, last_index_position, postags, chars):
+	def forward_emb(self, words, index_ids, last_index_position, postags, chars, lengths):
+		def pack(x):
+			return pack_padded_sequence(x, lengths, batch_first=True, enforce_sorted=False)
+
 		# Look up
-		word_emb = None
+		inputs = []
 		if self.config.use_word_emb_scratch:
 			word_emb = self.word_project(words)
+			inputs += [pack(word_emb)]
+
 		if self.config.use_phobert:
 			origin_features = self.phobert(index_ids)
 			features = origin_features[2][self.config.phobert_layer]
@@ -86,56 +98,68 @@ class Encoder(nn.Module):
 					phobert_embedding.append(one_emb)
 				phobert_embs.append(torch.stack(phobert_embedding, dim=0))
 			phobert_embs = torch.stack(phobert_embs, dim=0)
-			if word_emb is not None:
-				word_emb = torch.cat([word_emb, phobert_embs], dim=2)
-			else:
-				word_emb = phobert_embs
+			inputs += [pack(phobert_embs)]
 
 		if self.config.use_charCNN:
 			char_emb = self.charCNN_embedding(chars)
-			word_emb = torch.cat([word_emb, char_emb], dim=2)
-		if self.mode == 'teacher':
-			word_emb = self.word_dropout(word_emb)
-		else:
-			word_emb = self.word_dropout_student(word_emb)
+			inputs += [pack(char_emb)]
 
 		if self.config.use_pos:
 			pos_emb = self.pos_embedding(postags)
-			if self.mode == 'teacher':
-				pos_emb = self.pos_dropout(pos_emb)
-			else:
-				pos_emb = self.pos_dropout_student(pos_emb)
-			word_emb = torch.cat([word_emb, pos_emb], dim=2)
-		return word_emb
+			inputs += [pack(pos_emb)]
 
-	def forward(self, words, index_ids, last_index_position, postags, chars, masks):
-		word_emb = self.forward_emb(words, index_ids, last_index_position, postags, chars)
+		input_batch_size = inputs[0].batch_sizes
+		inputs = torch.cat([x.data for x in inputs], 1)
+		if self.mode == 'teacher':
+			inputs = self.worddrop(inputs, self.drop_replacement)
+			inputs = self.dropout(inputs)
+		else:
+			inputs = self.worddrop_student(inputs, self.drop_replacement)
+			inputs = self.dropout_student(inputs)
+		return inputs, input_batch_size
+
+	def forward(self, words, index_ids, last_index_position, postags, chars, masks, lengths):
+		def pack(x):
+			return pack_padded_sequence(x, lengths, batch_first=True)
+
+		inputs, input_batch_size = self.forward_emb(words, index_ids, last_index_position, postags, chars, lengths)
 
 		pos_loss = None
 		if self.config.encoder == 'biLSTM':
-			rnn1_out, _ = self.rnn1(word_emb)
-			if self.mode == 'teacher':
-				rnn1_out = self.rnn1_dropout(rnn1_out)
-			else:
-				rnn1_out = self.rnn1_dropout_student(rnn1_out)
-			uni_fw = rnn1_out[:, :, :self.rnn_size]
-			uni_bw = rnn1_out[:, :, self.rnn_size:]
+			lstm_inputs = PackedSequence(inputs, input_batch_size)
+
+			rnn1_out, _ = self.parserlstm(lstm_inputs, lengths, hx=(
+			self.parserlstm_h_init.expand(2 * self.config.rnn_1_depth, words.size(0), self.rnn_size).contiguous(),
+			self.parserlstm_c_init.expand(2 * self.config.rnn_1_depth, words.size(0), self.rnn_size).contiguous()))
+
+			rnn1_out_padded, _ = pad_packed_sequence(rnn1_out, batch_first=True)
+			uni_fw = rnn1_out_padded[:, :, :self.rnn_size]
+			uni_bw = rnn1_out_padded[:, :, self.rnn_size:]
 
 			if self.config.rnn_2_depth > 0:
 				rnn2_in = rnn1_out
-				rnn2_out, _ = self.rnn2(rnn2_in)
 				if self.mode == 'teacher':
-					rnn2_out = self.rnn2_dropout(rnn2_out)
+					rnn2_in = self.worddrop(rnn2_in, self.drop_replacement2)
 				else:
-					rnn2_out = self.rnn2_dropout_student(rnn2_out)
-				return rnn1_out, rnn2_out, uni_fw, uni_bw, pos_loss
-			return rnn1_out, rnn1_out, uni_fw, uni_bw, pos_loss
+					rnn2_in = self.worddrop_student(rnn2_in, self.drop_replacement2)
+				rnn2_out, _ = self.parserlstm2(rnn2_in, lengths, hx=(
+				self.parserlstm_h_init2.expand(2 * self.config.rnn_2_depth, words.size(0), self.rnn_size).contiguous(),
+				self.parserlstm_c_init2.expand(2 * self.config.rnn_2_depth, words.size(0), self.rnn_size).contiguous()))
+
+				rnn2_out_padded, _ = pad_packed_sequence(rnn2_out, batch_first=True)
+				return rnn1_out_padded, rnn2_out_padded, uni_fw, uni_bw, pos_loss
+
+			return rnn1_out_padded, rnn1_out_padded, uni_fw, uni_bw, pos_loss
 		else:
+			word_emb = pad_packed_sequence(inputs, batch_first=True)
 			aux = (words != PAD_INDEX).unsqueeze(-2)  # mask
 			trans1_out = self.transformer1(word_emb, aux)
-
 			if self.config.transformer_2_depth > 0:
 				trans2_in = trans1_out
+				if self.mode == 'teacher':
+					trans2_in = self.dropout(trans2_in)
+				else:
+					trans2_in = self.dropout_student(trans2_in)
 				trans2_out = self.transformer2(trans2_in, aux)
 				return trans1_out, trans2_out, pos_loss
 			return trans1_out, trans1_out, pos_loss

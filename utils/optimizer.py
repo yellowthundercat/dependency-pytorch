@@ -16,7 +16,7 @@ class LRAdamWPolicy(object):
 # follow phoNLP
 def adamW(model, config, base_lr=None):
 	if base_lr is None:
-		base_lr = config.lr_adamw
+		base_lr = config.lr_adam
 	if config.fine_tune:
 		params = model.named_parameters()
 		no_decay = ["bias", "LayerNorm.bias", "LayerNorm.weight"]
@@ -24,11 +24,14 @@ def adamW(model, config, base_lr=None):
 			{"params": [p for n, p in params if not any(nd in n for nd in no_decay)], "weight_decay": 0.01},
 			{"params": [p for n, p in params if any(nd in n for nd in no_decay)], "weight_decay": 0.0},
 		]
+		optimizer = AdamW(optimizer_grouped_parameters, betas=config.beta, lr=base_lr, correct_bias=False)
+		# To reproduce BertAdam specific behavior set correct_bias=False
 	else:
-		optimizer_grouped_parameters = model.parameters()
+		# standford nlp
+		optimizer_grouped_parameters = [p for p in model.parameters() if p.requires_grad]
+		optimizer = torch.optim.Adam(optimizer_grouped_parameters, lr=base_lr, betas=config.adam_beta, eps=config.adam_eps)
+
 	num_train_optimization_steps = 40 * (8000 / config.batch_size)
-	optimizer = AdamW(optimizer_grouped_parameters, betas=config.beta, lr=base_lr, correct_bias=False)
-	# To reproduce BertAdam specific behavior set correct_bias=False
 	scheduler = LambdaLR(optimizer, LRAdamWPolicy(num_warmup_steps=5, num_training_steps=num_train_optimization_steps), -1)
 	return optimizer, scheduler
 

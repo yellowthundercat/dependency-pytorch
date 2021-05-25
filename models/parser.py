@@ -22,19 +22,19 @@ class Parser(nn.Module):
 		# Loss function that we will use during training.
 		self.loss = torch.nn.CrossEntropyLoss(reduction='none')
 
-	def get_scorer_repr(self, words, index_ids, last_index_position, postags, chars, masks):
+	def get_scorer_repr(self, words, index_ids, last_index_position, postags, chars, masks, lengths):
 		if self.config.encoder == 'biLSTM':
-			rnn1_out, rnn2_out, uni_fw, uni_bw, pos_loss = self.encoder(words, index_ids, last_index_position, postags, chars, masks)
+			rnn1_out, rnn2_out, uni_fw, uni_bw, pos_loss = self.encoder(words, index_ids, last_index_position, postags, chars, masks, lengths)
 			head_repr, dep_repr = get_dependency_encoder_repr(self.head_repr_type, self.dep_repr_type, rnn1_out, rnn2_out, uni_fw, uni_bw)
 		else:
-			trans1, trans2, pos_loss = self.encoder(words, index_ids, last_index_position, postags, chars, masks)
+			trans1, trans2, pos_loss = self.encoder(words, index_ids, last_index_position, postags, chars, masks, lengths)
 			head_repr = trans1 if self.head_repr_type == 'trans1' else trans2
 			dep_repr = trans1 if self.dep_repr_type == 'trans1' else trans2
 		arc_score, lab_score, lin_scores, dist_kld, head_offset = self.scorer(head_repr, dep_repr)
 		return arc_score, lab_score, pos_loss, lin_scores, dist_kld, head_offset
 
-	def forward(self, words, index_ids, last_index_position, postags, chars, heads, labels, masks):
-		arc_score, lab_score, pos_loss, lin_scores, dist_kld, head_offset = self.get_scorer_repr(words, index_ids, last_index_position, postags, chars, masks)
+	def forward(self, words, index_ids, last_index_position, postags, chars, heads, labels, masks, lengths):
+		arc_score, lab_score, pos_loss, lin_scores, dist_kld, head_offset = self.get_scorer_repr(words, index_ids, last_index_position, postags, chars, masks, lengths)
 
 		# We don't want to evaluate the loss or attachment score for the positions
 		# where we have a padding token. So we create a mask that will be zero for those
@@ -100,11 +100,11 @@ class Parser(nn.Module):
 		return head_list, lab_list
 
 	def predict_batch(self, words, index_ids, last_index_position, postags, chars, lengths, masks):
-		arc_score, lab_score, pos_loss, lin_scores, dist_kld, head_offset = self.get_scorer_repr(words, index_ids, last_index_position, postags, chars, masks)
+		arc_score, lab_score, pos_loss, lin_scores, dist_kld, head_offset = self.get_scorer_repr(words, index_ids, last_index_position, postags, chars, masks, lengths)
 		return self.parse_from_score(arc_score, lab_score, lengths)
 
 	def predict_batch_with_loss(self, words, index_ids, last_index_position, postags, chars, heads, labels, pad_masks, lengths):
-		arc_score, lab_score, pos_loss, lin_scores, dist_kld, head_offset = self.get_scorer_repr(words, index_ids, last_index_position, postags, chars, pad_masks)
+		arc_score, lab_score, pos_loss, lin_scores, dist_kld, head_offset = self.get_scorer_repr(words, index_ids, last_index_position, postags, chars, pad_masks, lengths)
 		loss = self.compute_loss(arc_score, lab_score, lin_scores, dist_kld, head_offset, heads, labels, pad_masks)
 		head_list, lab_list = self.parse_from_score(arc_score, lab_score, lengths)
 		return loss, head_list, lab_list

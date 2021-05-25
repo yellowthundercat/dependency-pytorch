@@ -50,18 +50,23 @@ class Config:
 		self.phobert_layer = -1  # range: [0, ..., 12]
 		self.phobert_subword = 'first'  # sum or first
 		self.fine_tune = False
-		self.word_emb_dim = 100
+		self.word_emb_dim = 75
 		self.minimum_frequency = 2
 		self.phobert_dim = 768
-		self.pos_emb_dim = 100
+		self.pos_emb_dim = 50
 		self.charCNN_dim = 0  # set later in code about 150
 
 		# sentence level
 		self.length_ordered = False
-		self.teacher_dropout = 0.33
-		self.student_dropout = 0.5
 		self.arc_mlp_size = 500
 		self.lab_mlp_size = 100
+
+		# dropout
+		self.word_dropout = 0.33
+		self.word_dropout_student = 0.5
+		self.rec_dropout = 0.25
+		self.teacher_dropout = 0.5
+		self.student_dropout = 0.5
 
 		# encoder
 		self.encoder = 'biLSTM'  # biLSTM, transformer
@@ -96,8 +101,9 @@ class Config:
 		self.print_dev_student = True
 
 		# optimizer
-		# momentum for cross-view training
 		self.use_momentum = False  # crossview should use
+		self.use_scheduler = False
+		# momentum for cross-view training
 		self.lr_momentum = 0.2  # base learning rate
 		self.student_lr_momentum = 0.1
 		self.pos_lambda = 1
@@ -107,8 +113,9 @@ class Config:
 		self.lr_decay = 0.005  # factor for gradually decaying the lr
 
 		# adamw
-		self.lr_adamw = 2e-3
-		self.beta = (0.9, 0.9)
+		self.lr_adam = 3e-3
+		self.adam_beta = (0.9, 0.95)
+		self.adam_eps = 1e-6
 
 		# other
 		self.seed = 1234
