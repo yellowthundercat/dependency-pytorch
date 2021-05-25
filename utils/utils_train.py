@@ -4,7 +4,7 @@ from models.encoder import Encoder
 from models.parser import Parser
 from utils import optimizer
 
-def init_model_student(main_self, config):
+def init_model_student(main_self, config, get_optimizer):
 	teacher_encoder = 'bi'
 	if config.concat_first_layer:
 		teacher_encoder = 'uni_bi'
@@ -20,13 +20,18 @@ def init_model_student(main_self, config):
 		main_self.model_students = [
 			Parser(main_self.encoder, len(main_self.corpus.vocab.l2i), config, 'trans1', 'trans1', config.student_dropout),
 		]
-	main_self.optimizer = optimizer.momentum(main_self.model.parameters(), config, config.lr_momentum)
-	main_self.optimizer_students = [optimizer.momentum(model.parameters(), config, config.student_lr_momentum) for model in main_self.model_students]
-	main_self.scheduler = optimizer.momentum_scheduler(main_self.optimizer, config)
-	main_self.scheduler_students = [optimizer.momentum_scheduler(opt_student, config) for opt_student in
-																	main_self.optimizer_students]
+	main_self.optimizer, main_self.scheduler = get_optimizer(main_self.model, config)
+	main_self.optimizer_students = []
+	main_self.scheduler_students = []
+	for model in main_self.model_students:
+		opt, sche = get_optimizer(model, config)
+		main_self.optimizer_students.append(opt)
+		main_self.scheduler_students.append(sche)
 
 def init_model(main_self, config):
+	get_optimizer = optimizer.adamW
+	if config.use_momentum:
+		get_optimizer = optimizer.momentum
 	main_self.encoder = Encoder(config, len(main_self.corpus.vocab.t2i), len(main_self.corpus.vocab.w2i), len(main_self.corpus.vocab.c2i))
 	if config.concat_first_layer:
 		main_self.model = Parser(main_self.encoder, len(main_self.corpus.vocab.l2i), config, 'uni_bi', 'uni_bi', config.teacher_dropout)
@@ -36,22 +41,16 @@ def init_model(main_self, config):
 	main_self.best_las = main_self.best_uas = 0
 	main_self.best_loss = 100
 	if config.cross_view:
-		init_model_student(main_self, config)
+		init_model_student(main_self, config, get_optimizer)
 	else:
-		# main_self.optimizer = optimizer.adam(main_self.model.parameters(), config)
-		if config.use_momentum:
-			main_self.optimizer = optimizer.momentum(main_self.model.parameters(), config, config.lr_momentum)
-			main_self.scheduler = optimizer.momentum_scheduler(main_self.optimizer, config)
-		else:
-			main_self.optimizer = optimizer.adam(main_self.model.parameters(), config)
+		main_self.optimizer, main_self.scheduler = get_optimizer(main_self.model, config)
 
 def load_model(main_self, all_model, config):
 	main_self.encoder = all_model['encoder']
 	main_self.model = all_model['model']
 	main_self.model.encoder = main_self.encoder
 	main_self.optimizer = all_model['optimizer']
-	if config.use_momentum:
-		main_self.scheduler = all_model['scheduler']
+	main_self.scheduler = all_model['scheduler']
 	main_self.saving_step = all_model['step']
 	main_self.best_uas = all_model['uas']
 	main_self.best_las = all_model['las']
@@ -71,10 +70,9 @@ def save_model(main_self, config):
 		'step': main_self.saving_step,
 		'uas': main_self.best_uas,
 		'las': main_self.best_las,
-		'loss': main_self.best_loss
+		'loss': main_self.best_loss,
+		'scheduler': main_self.scheduler
 	}
-	if config.use_momentum:
-		all_model['scheduler'] = main_self.scheduler
 	if config.cross_view:
 		all_model['model_students'] = main_self.model_students
 		all_model['optimizer_students'] = main_self.optimizer_students

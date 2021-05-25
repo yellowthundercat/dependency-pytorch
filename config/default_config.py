@@ -49,6 +49,7 @@ class Config:
 		self.concat_first_layer = False
 		self.phobert_layer = -1  # range: [0, ..., 12]
 		self.phobert_subword = 'first'  # sum or first
+		self.fine_tune = True
 		self.word_emb_dim = 100
 		self.minimum_frequency = 2
 		self.phobert_dim = 768
@@ -78,14 +79,15 @@ class Config:
 		self.max_step = 20000
 		self.max_waiting_step = 20000  # if not improve in this period -> stop
 		self.teacher_only_step = 50
-		self.batch_size = 64
-		self.phobert_batch_size = 32
+		self.batch_size = 32
 		self.print_step = 50
 		self.eval_dev_every = 500  # how often to evaluate on the dev set
+		self.eval_test_every = 5000
 		if self.use_small_subset:
 			self.batch_size = 16
 			self.print_step = 2
 			self.eval_dev_every = 10
+			self.eval_test_every = 30
 			self.max_step = 100
 			self.teacher_only_step = 0
 
@@ -95,17 +97,19 @@ class Config:
 
 		# optimizer
 		# momentum for cross-view training
-		self.use_momentum = False  # crossview must use
-		if self.cross_view:
-			self.use_momentum = True
-		self.lr_momentum = 0.5  # base learning rate
-		self.student_lr_momentum = 0.2
+		self.use_momentum = False  # crossview should use
+		self.lr_momentum = 0.2  # base learning rate
+		self.student_lr_momentum = 0.1
 		self.pos_lambda = 1
 		self.momentum = 0.9  # momentum
 		self.grad_clip = 1.0  # maximum gradient norm during optimization
 		self.warm_up_steps = 5000.0  # linearly ramp up the lr for this many steps
 		self.lr_decay = 0.005  # factor for gradually decaying the lr
 
+		# adamw
+		self.lr_adamw = 2e-3
+		self.beta = (0.9, 0.9)
+
 		# other
-		self.seed = 26052020
+		self.seed = 1234
 		self.error_order = False

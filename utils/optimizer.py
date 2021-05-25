@@ -1,12 +1,36 @@
 import math
 import torch
 from torch.optim.lr_scheduler import LambdaLR
+from transformers import AdamW
 
-def adam(params, config):
-	return torch.optim.Adam(params, betas=(0.9, 0.9), lr=0.005, weight_decay=1e-5)
+class LRAdamWPolicy(object):
+	def __init__(self, num_warmup_steps, num_training_steps):
+		self.num_warmup_steps = num_warmup_steps
+		self.num_training_steps = num_training_steps
 
-def momentum(params, config, base_lr):
-	return torch.optim.SGD(params, lr=base_lr, momentum=config.momentum)
+	def __call__(self, current_step):
+		if current_step < self.num_warmup_steps:
+			return float(current_step) / float(max(1, self.num_warmup_steps))
+		return max(0.0, float(self.num_training_steps - current_step) / float(max(1, self.num_training_steps - self.num_warmup_steps)))
+
+# follow phoNLP
+def adamW(model, config, base_lr=None):
+	if base_lr is None:
+		base_lr = config.lr_adamw
+	if config.fine_tune:
+		params = model.named_parameters()
+		no_decay = ["bias", "LayerNorm.bias", "LayerNorm.weight"]
+		optimizer_grouped_parameters = [
+			{"params": [p for n, p in params if not any(nd in n for nd in no_decay)], "weight_decay": 0.01},
+			{"params": [p for n, p in params if any(nd in n for nd in no_decay)], "weight_decay": 0.0},
+		]
+	else:
+		optimizer_grouped_parameters = model.parameters()
+	num_train_optimization_steps = 40 * (8000 / config.batch_size)
+	optimizer = AdamW(optimizer_grouped_parameters, betas=config.beta, lr=base_lr, correct_bias=False)
+	# To reproduce BertAdam specific behavior set correct_bias=False
+	scheduler = LambdaLR(optimizer, LRAdamWPolicy(num_warmup_steps=5, num_training_steps=num_train_optimization_steps), -1)
+	return optimizer, scheduler
 
 class LRPolicy(object):
 	def __init__(self, config):
@@ -18,6 +42,12 @@ class LRPolicy(object):
 		update_factor = warm_up_multiplier * decay_multiplier
 		return update_factor
 
-def momentum_scheduler(optimizer, config):
+# follow cross-view training
+def momentum(model, config, base_lr=None):
+	if base_lr is None:
+		base_lr = config.lr_momentum
+	params = model.parameters()
+	optimizer = torch.optim.SGD(params, lr=base_lr, momentum=config.momentum)
 	scheduler = LambdaLR(optimizer, lr_lambda=LRPolicy(config))
-	return scheduler
+	return optimizer, scheduler
+
