@@ -14,7 +14,9 @@ class LRAdamWPolicy(object):
 		return max(0.0, float(self.num_training_steps - current_step) / float(max(1, self.num_training_steps - self.num_warmup_steps)))
 
 # follow phoNLP
-def adamW(model, config, base_lr=1e-5):
+def adamW(model, config, base_lr=None):
+	if base_lr is None:
+		base_lr = config.lr_adamw
 	params = model.named_parameters()
 	no_decay = ["bias", "LayerNorm.bias", "LayerNorm.weight"]
 	optimizer_grouped_parameters = [
@@ -22,9 +24,8 @@ def adamW(model, config, base_lr=1e-5):
 		{"params": [p for n, p in params if any(nd in n for nd in no_decay)], "weight_decay": 0.0},
 	]
 	num_train_optimization_steps = 40 * (8000 / config.batch_size)
-	optimizer = AdamW(
-		optimizer_grouped_parameters, lr=base_lr, correct_bias=False
-	)  # To reproduce BertAdam specific behavior set correct_bias=False
+	optimizer = AdamW(optimizer_grouped_parameters, betas=config.beta, lr=base_lr, correct_bias=False)
+	# To reproduce BertAdam specific behavior set correct_bias=False
 	scheduler = LambdaLR(optimizer, LRAdamWPolicy(num_warmup_steps=5, num_training_steps=num_train_optimization_steps), -1)
 	return optimizer, scheduler
 
@@ -39,7 +40,9 @@ class LRPolicy(object):
 		return update_factor
 
 # follow cross-view training
-def momentum(model, config, base_lr=0.5):
+def momentum(model, config, base_lr=None):
+	if base_lr is None:
+		base_lr = config.lr_momentum
 	params = model.parameters()
 	optimizer = torch.optim.SGD(params, lr=base_lr, momentum=config.momentum)
 	scheduler = LambdaLR(optimizer, lr_lambda=LRPolicy(config))

@@ -98,13 +98,17 @@ class Config:
 		# optimizer
 		# momentum for cross-view training
 		self.use_momentum = False  # crossview should use
-		self.lr_momentum = 0.5  # base learning rate
-		self.student_lr_momentum = 0.2
+		self.lr_momentum = 0.2  # base learning rate
+		self.student_lr_momentum = 0.1
 		self.pos_lambda = 1
 		self.momentum = 0.9  # momentum
 		self.grad_clip = 1.0  # maximum gradient norm during optimization
 		self.warm_up_steps = 5000.0  # linearly ramp up the lr for this many steps
 		self.lr_decay = 0.005  # factor for gradually decaying the lr
+
+		# adamw
+		self.lr_adamw = 2e-3
+		self.beta = (0.9, 0.9)
 
 		# other
 		self.seed = 1234
