@@ -49,10 +49,11 @@ class Parser(nn.Module):
 		arc_loss = self.arc_loss(arc_score, heads, pad_mask)
 		lab_loss = self.lab_loss(lab_score, heads, labels, pad_mask)
 		lin_loss = self.lin_loss(lin_scores, heads, pad_mask, head_offset)
-		dist_loss = torch.gather(dist_kld[:, :], 2, heads.unsqueeze(2))
-		loss = arc_loss + lab_loss + lin_loss
+		dist_loss = torch.gather(dist_kld[:, :], 2, heads.unsqueeze(2)).view(-1)
+		print(dist_loss.shape)
+		loss = arc_loss + lab_loss + lin_loss - dist_loss
 		pad_mask = pad_mask.view(-1)
-		avg_loss = (loss.dot(pad_mask) - dist_loss.sum()) / pad_mask.sum()
+		avg_loss = loss.dot(pad_mask) / pad_mask.sum()
 		return avg_loss
 
 	def lin_loss(self, lin_scores, heads, pad_mask, head_offset):
