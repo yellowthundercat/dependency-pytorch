@@ -31,8 +31,11 @@ def adamW(model, config, base_lr=None):
 		optimizer_grouped_parameters = [p for p in model.parameters() if p.requires_grad]
 		optimizer = torch.optim.Adam(optimizer_grouped_parameters, lr=base_lr, betas=config.adam_beta, eps=config.adam_eps)
 
-	num_train_optimization_steps = 40 * (8000 / config.batch_size)
-	scheduler = LambdaLR(optimizer, LRAdamWPolicy(num_warmup_steps=5, num_training_steps=num_train_optimization_steps), -1)
+	if config.use_scheduler:
+		num_train_optimization_steps = 40 * (8000 / config.batch_size)
+		scheduler = LambdaLR(optimizer, LRAdamWPolicy(num_warmup_steps=5, num_training_steps=num_train_optimization_steps), -1)
+	else:
+		scheduler = None
 	return optimizer, scheduler
 
 class LRPolicy(object):
@@ -51,6 +54,9 @@ def momentum(model, config, base_lr=None):
 		base_lr = config.lr_momentum
 	params = model.parameters()
 	optimizer = torch.optim.SGD(params, lr=base_lr, momentum=config.momentum)
-	scheduler = LambdaLR(optimizer, lr_lambda=LRPolicy(config))
+	if config.use_scheduler:
+		scheduler = LambdaLR(optimizer, lr_lambda=LRPolicy(config))
+	else:
+		scheduler = None
 	return optimizer, scheduler
 
