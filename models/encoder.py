@@ -127,10 +127,10 @@ class Encoder(nn.Module):
 		if self.config.encoder == 'biLSTM':
 			lstm_inputs = PackedSequence(inputs, input_batch_size)
 
-			# rnn1_out, _ = self.parserlstm(lstm_inputs, lengths, hx=(
-			# self.parserlstm_h_init.expand(2 * self.config.rnn_1_depth, words.size(0), self.rnn_size).contiguous(),
-			# self.parserlstm_c_init.expand(2 * self.config.rnn_1_depth, words.size(0), self.rnn_size).contiguous()))
-			rnn1_out, _ = self.rnn1(lstm_inputs)
+			rnn1_out, _ = self.parserlstm(lstm_inputs, lengths, hx=(
+			self.parserlstm_h_init.expand(2 * self.config.rnn_1_depth, words.size(0), self.rnn_size).contiguous(),
+			self.parserlstm_c_init.expand(2 * self.config.rnn_1_depth, words.size(0), self.rnn_size).contiguous()))
+			#rnn1_out, _ = self.rnn1(lstm_inputs)
 
 			rnn1_out_padded, _ = pad_packed_sequence(rnn1_out, batch_first=True)
 			uni_fw = rnn1_out_padded[:, :, :self.rnn_size]
