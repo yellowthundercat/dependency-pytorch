@@ -99,25 +99,25 @@ class Encoder(nn.Module):
 					phobert_embedding.append(one_emb)
 				phobert_embs.append(torch.stack(phobert_embedding, dim=0))
 			phobert_embs = torch.stack(phobert_embs, dim=0)
-			inputs += [pack(phobert_embs)]
+			inputs = phobert_embs
 
 		if self.config.use_charCNN:
 			char_emb = self.charCNN_embedding(chars)
-			inputs += [pack(char_emb)]
+			inputs = torch.cat([inputs, char_emb], dim=2)
 
 		if self.config.use_pos:
 			pos_emb = self.pos_embedding(postags)
-			inputs += [pack(pos_emb)]
+			inputs = torch.cat([inputs, pos_emb], dim=2)
 
-		input_batch_size = inputs[0].batch_sizes
-		inputs = torch.cat([x.data for x in inputs], 1)
-		if self.mode == 'teacher':
-			inputs = self.worddrop(inputs, self.drop_replacement)
-			inputs = self.dropout(inputs)
-		else:
-			inputs = self.worddrop_student(inputs, self.drop_replacement)
-			inputs = self.dropout_student(inputs)
-		return inputs, input_batch_size
+		# input_batch_size = inputs[0].batch_sizes
+		# inputs = torch.cat([x.data for x in inputs], 1)
+		# if self.mode == 'teacher':
+		# 	inputs = self.worddrop(inputs, self.drop_replacement)
+		# 	inputs = self.dropout(inputs)
+		# else:
+		# 	inputs = self.worddrop_student(inputs, self.drop_replacement)
+		# 	inputs = self.dropout_student(inputs)
+		return inputs, None
 
 	def forward(self, words, index_ids, last_index_position, postags, chars, masks, lengths):
 
@@ -125,16 +125,16 @@ class Encoder(nn.Module):
 
 		pos_loss = None
 		if self.config.encoder == 'biLSTM':
-			lstm_inputs = PackedSequence(inputs, input_batch_size)
+			# lstm_inputs = PackedSequence(inputs, input_batch_size)
 
 			# rnn1_out, _ = self.parserlstm(lstm_inputs, lengths, hx=(
 			# self.parserlstm_h_init.expand(2 * self.config.rnn_1_depth, words.size(0), self.rnn_size).contiguous(),
 			# self.parserlstm_c_init.expand(2 * self.config.rnn_1_depth, words.size(0), self.rnn_size).contiguous()))
-			rnn1_out, _ = self.rnn1(lstm_inputs)
+			rnn1_out, _ = self.rnn1(inputs)
 
-			rnn1_out_padded, _ = pad_packed_sequence(rnn1_out, batch_first=True)
-			uni_fw = rnn1_out_padded[:, :, :self.rnn_size]
-			uni_bw = rnn1_out_padded[:, :, self.rnn_size:]
+			# rnn1_out_padded, _ = pad_packed_sequence(rnn1_out, batch_first=True)
+			uni_fw = rnn1_out[:, :, :self.rnn_size]
+			uni_bw = rnn1_out[:, :, self.rnn_size:]
 
 			if self.config.rnn_2_depth > 0:
 				rnn2_in = rnn1_out
@@ -147,9 +147,9 @@ class Encoder(nn.Module):
 				self.parserlstm_c_init2.expand(2 * self.config.rnn_2_depth, words.size(0), self.rnn_size).contiguous()))
 
 				rnn2_out_padded, _ = pad_packed_sequence(rnn2_out, batch_first=True)
-				return rnn1_out_padded, rnn2_out_padded, uni_fw, uni_bw, pos_loss
+				return rnn1_out, rnn2_out_padded, uni_fw, uni_bw, pos_loss
 
-			return rnn1_out_padded, rnn1_out_padded, uni_fw, uni_bw, pos_loss
+			return rnn1_out, rnn1_out, uni_fw, uni_bw, pos_loss
 		else:
 			word_emb = pad_packed_sequence(inputs, batch_first=True)
 			aux = (words != PAD_INDEX).unsqueeze(-2)  # mask
