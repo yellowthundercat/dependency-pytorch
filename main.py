@@ -9,6 +9,7 @@ from utils import utils
 from preprocess import dataset
 from utils.find_error_example import write_file_error_example
 from utils import utils_train
+from torch import nn, optim
 
 class DependencyParser:
 	def __init__(self, config):
@@ -118,6 +119,7 @@ class DependencyParser:
 			unlabel_batches = self.unlabel_corpus.dataset.batches(self.config.batch_size, length_ordered=self.config.length_ordered)
 		# odd for teacher, even for student
 		t0 = time.time()
+		using_amsgrad = False
 		for global_step in range(self.saving_step+1, self.config.max_step+1):
 			# train
 			if global_step <= self.config.teacher_only_step or global_step % 2 == 1 or self.config.cross_view is False:
@@ -135,6 +137,15 @@ class DependencyParser:
 					unlabel_batch, unlabel_batches = self.get_train_batch(unlabel_batches, is_label=False)
 					total_student_loss += self.train_student(unlabel_batch)
 				count_student += 5
+
+			# switch optimizer
+			if global_step - self.saving_step > self.config.max_waiting_adam and not self.config.use_momentum and not using_amsgrad:
+				print('Switching to AMSGrad')
+				using_amsgrad = True
+				self.optimizer = optim.Adam(self.model.parameters(), amsgrad=True, lr=self.config.lr_adam, betas=self.config.adam_beta, eps=1e-6)
+				if self.config.cross_view:
+					for i_m in range(len(self.model_students)):
+						self.optimizer_students[i_m] = optim.Adam(self.model_students[i_m].parameters(), amsgrad=True, lr=self.config.lr_adam, betas=self.config.adam_beta, eps=1e-6)
 
 			# print result
 			if global_step % self.config.print_step == 0 or global_step == self.config.max_step:

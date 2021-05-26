@@ -90,6 +90,7 @@ class Config:
 		self.print_step = 50
 		self.eval_dev_every = 500  # how often to evaluate on the dev set
 		self.eval_test_every = 5000
+		self.max_waiting_adam = 3000
 		if self.use_small_subset:
 			self.batch_size = 16
 			self.print_step = 2
@@ -97,6 +98,7 @@ class Config:
 			self.eval_test_every = 50
 			self.max_step = 100
 			self.teacher_only_step = 0
+			self.max_waiting_adam = 20
 
 		# cross-view
 		self.gold_student_step = 10000000
@@ -106,8 +108,8 @@ class Config:
 		self.use_momentum = False  # crossview should use
 		self.use_scheduler = False
 		# momentum for cross-view training
-		self.lr_momentum = 0.2  # base learning rate
-		self.student_lr_momentum = 0.1
+		self.lr_momentum = 0.5  # base learning rate
+		self.student_lr_momentum = 0.2
 		self.pos_lambda = 1
 		self.momentum = 0.9  # momentum
 		self.grad_clip = 1.0  # maximum gradient norm during optimization
