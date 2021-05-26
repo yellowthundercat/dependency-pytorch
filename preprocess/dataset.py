@@ -268,6 +268,21 @@ class Dataset:
 		new_order, _ = zip(*sorted(old_order, key=lambda t: t[1]))
 		self.swap_data(new_order)
 
+	def order_batch(self, batch_size):
+		origin_ids = []
+		n = len(self.lengths)
+		batch_list = list(range(0, n, batch_size))
+		for i in batch_list:
+			old_order = list(zip(range(i, min(i+batch_size, n)), self.lengths[i:i+batch_size]))
+			old_order.sort(reverse=True, key=lambda t: t[1])
+			new_order = [item0 for item0, item1 in old_order]
+			origin_ids += new_order
+		self.swap_data(origin_ids)
+		old_order = list(zip(range(n), origin_ids))
+		old_order.sort(key=lambda t: t[1])
+		new_order = [item0 for item0, item1 in old_order]
+		return new_order
+
 	def shuffle(self):
 		if self.orgin_ordered:
 			return
@@ -290,6 +305,7 @@ class Dataset:
 		if length_ordered:
 			self.order()
 		index_ids = last_index_position = []
+		new_order = self.order_batch(batch_size)
 		for i in batch_order:
 			words = pad(self.words[i:i + batch_size])
 			if self.config.use_phobert:
@@ -302,7 +318,9 @@ class Dataset:
 			masks = pad_mask(self.labels[i:i + batch_size])
 			lengths = self.lengths[i:i + batch_size]
 			origin_words = self.origin_words[i:i + batch_size]
-			yield words, index_ids, last_index_position, tags, heads, labels, masks, lengths, origin_words, chars
+			yield words, index_ids, last_index_position, tags, heads, labels, masks, lengths, origin_words, chars, new_order[i: i+batch_size]
+		# return origin order
+		self.swap_data(new_order)
 
 	def concat(self, other):
 		self.words += other.words

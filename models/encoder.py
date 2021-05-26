@@ -70,8 +70,7 @@ class Encoder(nn.Module):
 
 	def forward_emb(self, words, index_ids, last_index_position, postags, chars, lengths):
 		def pack(x):
-			return pack_padded_sequence(x, lengths, batch_first=True, enforce_sorted=False)
-
+			return pack_padded_sequence(x, lengths, batch_first=True)
 		# Look up
 		inputs = []
 		if self.config.use_word_emb_scratch:
@@ -112,10 +111,10 @@ class Encoder(nn.Module):
 		input_batch_size = inputs[0].batch_sizes
 		inputs = torch.cat([x.data for x in inputs], 1)
 		if self.mode == 'teacher':
-			# inputs = self.worddrop(inputs, self.drop_replacement)
+			inputs = self.worddrop(inputs, self.drop_replacement)
 			inputs = self.dropout(inputs)
 		else:
-			# inputs = self.worddrop_student(inputs, self.drop_replacement)
+			inputs = self.worddrop_student(inputs, self.drop_replacement)
 			inputs = self.dropout_student(inputs)
 		return inputs, input_batch_size
 

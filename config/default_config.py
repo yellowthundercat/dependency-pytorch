@@ -90,7 +90,7 @@ class Config:
 		self.print_step = 50
 		self.eval_dev_every = 500  # how often to evaluate on the dev set
 		self.eval_test_every = 5000
-		self.max_waiting_adam = 3000
+		self.max_waiting_adam = 4000
 		if self.use_small_subset:
 			self.batch_size = 16
 			self.print_step = 2

@@ -61,21 +61,21 @@ class DependencyParser:
 		return total_loss
 
 	def train_gold_student(self, gold_batch):
-		words, index_ids, last_index_position, tags, heads, labels, masks, lengths, origin_words, chars = gold_batch
+		words, index_ids, last_index_position, tags, heads, labels, masks, lengths, origin_words, chars, new_order = gold_batch
 		return self.internal_train_student(words, index_ids, last_index_position, tags, chars, heads, labels, masks, lengths)
 
 	def train_student(self, unlabel_batch):
 		# use teacher to predict
 		self.model.eval()
 		self.model.encoder.mode = 'teacher'
-		words, index_ids, last_index_position, tags, heads, labels, masks, lengths, origin_words, chars = unlabel_batch
+		words, index_ids, last_index_position, tags, heads, labels, masks, lengths, origin_words, chars, new_order = unlabel_batch
 		head_list, lab_list = self.model.predict_batch(words, index_ids, last_index_position, tags, chars, lengths, masks)
 		predict_heads = dataset.pad([head.tolist() for head in head_list])
 		predict_labels = dataset.pad([lab.tolist() for lab in lab_list])
 		return self.internal_train_student(words, index_ids, last_index_position, tags, chars, predict_heads, predict_labels, masks, lengths)
 
 	def train_teacher(self, train_batch):
-		words, index_ids, last_index_position, tags, heads, labels, masks, lengths, origin_words, chars = train_batch
+		words, index_ids, last_index_position, tags, heads, labels, masks, lengths, origin_words, chars, new_order = train_batch
 		self.optimizer.zero_grad()
 		self.model.train()
 		self.model.encoder.mode = 'teacher'
@@ -213,16 +213,23 @@ class DependencyParser:
 		dev_length_list = []
 		dev_head_list = []
 		dev_lab_list = []
+		dev_new_order = []
 		with torch.no_grad():
 			for batch in dev_batches:
 				dev_batch_length += 1
-				words, index_ids, last_index_position, tags, heads, labels, masks, lengths, origin_words, chars = batch
+				words, index_ids, last_index_position, tags, heads, labels, masks, lengths, origin_words, chars, new_order = batch
 				loss, head_list, lab_list = model.predict_batch_with_loss(words, index_ids, last_index_position, tags, chars, heads, labels, masks, lengths)
 				stats['val_loss'] += loss.item()
 				dev_head_list += head_list
 				dev_lab_list += lab_list
 				dev_word_list += origin_words
 				dev_length_list += lengths
+				dev_new_order += new_order
+
+		dev_head_list = utils.unsort(dev_head_list, dev_new_order)
+		dev_lab_list = utils.unsort(dev_lab_list, dev_new_order)
+		dev_word_list = utils.unsort(dev_word_list, dev_new_order)
+		dev_length_list = utils.unsort(dev_length_list, dev_new_order)
 
 		utils.write_conll(self.corpus.vocab, dev_word_list, dev_head_list, dev_lab_list, dev_length_list,
 											self.config.parsing_file)
@@ -257,10 +264,11 @@ class DependencyParser:
 		gold_head_list = []
 		gold_lab_list = []
 		pos_list = []
+		new_order_list = []
 		with torch.no_grad():
 			for batch in test_batches:
 				test_batch_length += 1
-				words, index_ids, last_index_position, tags, heads, labels, masks, lengths, origin_words, chars = batch
+				words, index_ids, last_index_position, tags, heads, labels, masks, lengths, origin_words, chars, new_order = batch
 				head_list, lab_list = model.predict_batch(words, index_ids, last_index_position, tags, chars, heads, labels, lengths, masks)
 				gold_head_list += [head.data.numpy()[:lent] for head, lent in zip(heads.cpu(), lengths)]
 				gold_lab_list += [lab.data.numpy()[:lent] for lab, lent in zip(labels.cpu(), lengths)]
@@ -269,6 +277,16 @@ class DependencyParser:
 				test_lab_list += lab_list
 				test_word_list += origin_words
 				test_length_list += lengths
+				new_order_list += new_order
+
+			gold_head_list = utils.unsort(gold_head_list, new_order_list)
+			gold_lab_list = utils.unsort(gold_lab_list, new_order_list)
+			pos_list = utils.unsort(pos_list, new_order_list)
+			test_head_list = utils.unsort(test_head_list, new_order_list)
+			test_lab_list = utils.unsort(test_lab_list, new_order_list)
+			test_word_list = utils.unsort(test_word_list, new_order_list)
+			test_length_list = utils.unsort(test_length_list, new_order_list)
+
 			utils.write_conll(self.corpus.vocab, test_word_list, test_head_list, test_lab_list, test_length_list,
 												self.config.parsing_file)
 			write_file_error_example(self.config, self.corpus.vocab, test_word_list, test_head_list, gold_head_list, test_lab_list,
