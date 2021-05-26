@@ -58,6 +58,8 @@ class Config:
 
 		# sentence level
 		self.length_ordered = False
+		self.use_linearization = True
+		self.use_distance = True
 		self.arc_mlp_size = 500
 		self.lab_mlp_size = 100
 
@@ -113,6 +115,7 @@ class Config:
 		self.lr_decay = 0.005  # factor for gradually decaying the lr
 
 		# adamw
+		self.grad_clip_adam = True
 		self.lr_adam = 3e-3
 		self.adam_beta = (0.9, 0.95)
 		self.adam_eps = 1e-6

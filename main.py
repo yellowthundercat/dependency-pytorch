@@ -51,6 +51,8 @@ class DependencyParser:
 			student_model.encoder.mode = 'student'
 			loss = student_model(words, index_ids, last_index_position, tags, chars, heads, labels, masks, lengths)
 			loss.backward()
+			if self.config.grad_clip_adam and not self.config.use_momentum:
+				torch.nn.utils.clip_grad_norm_(student_model.parameters(), 1.0)
 			student_optimizer.step()
 			if self.config.use_scheduler:
 				student_scheduler.step()
@@ -78,6 +80,8 @@ class DependencyParser:
 		self.model.encoder.mode = 'teacher'
 		loss = self.model(words, index_ids, last_index_position, tags, chars, heads, labels, masks, lengths)
 		loss.backward()
+		if self.config.grad_clip_adam and not self.config.use_momentum:
+			torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1.0)
 		self.optimizer.step()
 		if self.config.use_scheduler:
 			self.scheduler.step()
@@ -246,7 +250,7 @@ class DependencyParser:
 			for batch in test_batches:
 				test_batch_length += 1
 				words, index_ids, last_index_position, tags, heads, labels, masks, lengths, origin_words, chars = batch
-				head_list, lab_list = model.predict_batch(words, index_ids, last_index_position, tags, chars, lengths, masks)
+				head_list, lab_list = model.predict_batch(words, index_ids, last_index_position, tags, chars, heads, labels, lengths, masks)
 				gold_head_list += [head.data.numpy()[:lent] for head, lent in zip(heads.cpu(), lengths)]
 				gold_lab_list += [lab.data.numpy()[:lent] for lab, lent in zip(labels.cpu(), lengths)]
 				pos_list += [tag.data.numpy()[:lent] for tag, lent in zip(tags.cpu(), lengths)]
