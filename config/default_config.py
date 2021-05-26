@@ -60,8 +60,8 @@ class Config:
 		self.length_ordered = False
 		self.use_linearization = True
 		self.use_distance = True
-		self.arc_mlp_size = 500
-		self.lab_mlp_size = 100
+		self.arc_mlp_size = 400
+		self.lab_mlp_size = 400
 
 		# dropout
 		self.word_dropout = 0.33

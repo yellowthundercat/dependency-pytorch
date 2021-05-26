@@ -9,12 +9,14 @@ from preprocess.sentence_level import preprocess_word, read_data, read_unlabel_d
 from preprocess.char import CHAR_DEFAULT, PAD_TOKEN, PAD_INDEX, UNK_TOKEN, UNK_INDEX, ROOT_TOKEN, \
 	ROOT_TAG, ROOT_LABEL, ROOT_INDEX, word_format
 
-def wrap(batch, is_float=False):
+def wrap(batch, is_float=False, is_bool=False):
 	"""Packages the batch as a Variable containing a LongTensor."""
 	if is_float:
 		wrapping = torch.autograd.Variable(torch.Tensor(batch))
 	else:
 		wrapping = torch.autograd.Variable(torch.LongTensor(batch))
+	if is_bool:
+		wrapping = torch.autograd.Variable(torch.BoolTensor(batch))
 	if torch.cuda.is_available():
 		wrapping = wrapping.cuda()
 	return wrapping
@@ -69,9 +71,9 @@ def pad_mask(batch):
 	max_len = max(lens)
 	padded_batch = []
 	for k in lens:
-		padded = k * [1] + (max_len - k) * [0]
+		padded = k * [True] + (max_len - k) * [False]
 		padded_batch.append(padded)
-	return wrap(padded_batch, True)
+	return wrap(padded_batch, False, True)
 
 def default_value():
 	return UNK_INDEX
