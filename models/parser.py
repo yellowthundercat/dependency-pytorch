@@ -28,7 +28,7 @@ class Parser(nn.Module):
 			trans1, trans2, pos_loss = self.encoder(words, index_ids, last_index_position, postags, chars, masks, lengths)
 			head_repr = trans1 if self.head_repr_type == 'trans1' else trans2
 			dep_repr = trans1 if self.dep_repr_type == 'trans1' else trans2
-		loss, preds = self.scorer(head_repr, dep_repr, heads, labels, masks)
+		loss, preds = self.scorer(head_repr, dep_repr, heads, labels, masks, lengths)
 		return loss, preds
 
 	def forward(self, words, index_ids, last_index_position, postags, chars, heads, labels, masks, lengths):

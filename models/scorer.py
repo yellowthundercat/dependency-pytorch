@@ -24,7 +24,7 @@ class BiaffineScorer(nn.Module):
 		self.crit = nn.CrossEntropyLoss(ignore_index=-1, reduction='sum')  # ignore padding
 		self.drop = nn.Dropout(p=dropout)
 
-	def forward(self, head_repr, dep_repr, heads, labels, masks):
+	def forward(self, head_repr, dep_repr, heads, labels, masks, lengths):
 		arc_score = self.arc_biaffine(self.drop(head_repr), self.drop(dep_repr)).squeeze(3)
 		lab_score = self.lab_biaffine(self.drop(head_repr), self.drop(dep_repr))
 
@@ -75,7 +75,7 @@ class BiaffineScorer(nn.Module):
 			dist_kld = torch.gather(dist_kld[:, 1:], 2, heads.unsqueeze(2))
 			loss -= dist_kld.sum()
 
-		loss /= masks.sum()  # number of words
+		loss /= sum(lengths)  # number of words
 
 		preds.append(F.log_softmax(arc_score, 2).detach().cpu().numpy())
 		preds.append(lab_score.max(3)[1].detach().cpu().numpy())

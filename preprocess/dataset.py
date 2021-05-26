@@ -71,7 +71,7 @@ def pad_mask(batch):
 	max_len = max(lens)
 	padded_batch = []
 	for k in lens:
-		padded = k * [True] + (max_len - k) * [False]
+		padded = k * [False] + (max_len - k) * [True]
 		padded_batch.append(padded)
 	return wrap(padded_batch, False, True)
 
