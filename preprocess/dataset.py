@@ -9,12 +9,14 @@ from preprocess.sentence_level import preprocess_word, read_data, read_unlabel_d
 from preprocess.char import CHAR_DEFAULT, PAD_TOKEN, PAD_INDEX, UNK_TOKEN, UNK_INDEX, ROOT_TOKEN, \
 	ROOT_TAG, ROOT_LABEL, ROOT_INDEX, word_format
 
-def wrap(batch, is_float=False):
+def wrap(batch, is_float=False, is_bool=False):
 	"""Packages the batch as a Variable containing a LongTensor."""
 	if is_float:
 		wrapping = torch.autograd.Variable(torch.Tensor(batch))
 	else:
 		wrapping = torch.autograd.Variable(torch.LongTensor(batch))
+	if is_bool:
+		wrapping = torch.autograd.Variable(torch.BoolTensor(batch))
 	if torch.cuda.is_available():
 		wrapping = wrapping.cuda()
 	return wrapping
@@ -69,9 +71,9 @@ def pad_mask(batch):
 	max_len = max(lens)
 	padded_batch = []
 	for k in lens:
-		padded = k * [1] + (max_len - k) * [0]
+		padded = k * [False] + (max_len - k) * [True]
 		padded_batch.append(padded)
-	return wrap(padded_batch, True)
+	return wrap(padded_batch, False, True)
 
 def default_value():
 	return UNK_INDEX
@@ -266,6 +268,21 @@ class Dataset:
 		new_order, _ = zip(*sorted(old_order, key=lambda t: t[1]))
 		self.swap_data(new_order)
 
+	def order_batch(self, batch_size):
+		origin_ids = []
+		n = len(self.lengths)
+		batch_list = list(range(0, n, batch_size))
+		for i in batch_list:
+			old_order = list(zip(range(i, min(i+batch_size, n)), self.lengths[i:i+batch_size]))
+			old_order.sort(reverse=True, key=lambda t: t[1])
+			new_order = [item0 for item0, item1 in old_order]
+			origin_ids += new_order
+		self.swap_data(origin_ids)
+		old_order = list(zip(range(n), origin_ids))
+		old_order.sort(key=lambda t: t[1])
+		new_order = [item0 for item0, item1 in old_order]
+		return new_order
+
 	def shuffle(self):
 		if self.orgin_ordered:
 			return
@@ -287,10 +304,13 @@ class Dataset:
 			np.random.shuffle(batch_order)
 		if length_ordered:
 			self.order()
+		index_ids = last_index_position = []
+		new_order = self.order_batch(batch_size)
 		for i in batch_order:
 			words = pad(self.words[i:i + batch_size])
-			index_ids = pad_phobert(self.input_ids[i:i + batch_size]).to(self.device)
-			last_index_position = pad(self.last_index_position[i:i + batch_size])
+			if self.config.use_phobert:
+				index_ids = pad_phobert(self.input_ids[i:i + batch_size]).to(self.device)
+				last_index_position = pad(self.last_index_position[i:i + batch_size])
 			chars = pad_char(self.chars[i:i + batch_size])
 			tags = pad(self.tags[i:i + batch_size])
 			heads = pad(self.heads[i:i + batch_size])
@@ -298,7 +318,9 @@ class Dataset:
 			masks = pad_mask(self.labels[i:i + batch_size])
 			lengths = self.lengths[i:i + batch_size]
 			origin_words = self.origin_words[i:i + batch_size]
-			yield words, index_ids, last_index_position, tags, heads, labels, masks, lengths, origin_words, chars
+			yield words, index_ids, last_index_position, tags, heads, labels, masks, lengths, origin_words, chars, new_order[i: i+batch_size]
+		# return origin order
+		self.swap_data(new_order)
 
 	def concat(self, other):
 		self.words += other.words

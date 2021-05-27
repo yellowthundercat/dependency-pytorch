@@ -128,6 +128,17 @@ def chuliu_edmonds(scores):
 def chuliu_edmonds_one_root(scores):
     """"""
 
+    # moving to positive
+    # min_score = 0
+    # for indexi, i in enumerate(scores):
+    #     for indexj, j in enumerate(i):
+    #         if j != -float('inf') and j < min_score:
+    #             min_score = j
+    # for indexi, i in enumerate(scores):
+    #     for indexj, j in enumerate(i):
+    #         if j != -float('inf'):
+    #             scores[indexi][indexj] += abs(min_score) + 1
+
     scores = scores.astype(np.float64)
     tree = chuliu_edmonds(scores)
     roots_to_try = np.where(np.equal(tree[1:], 0))[0]+1

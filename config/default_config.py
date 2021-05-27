@@ -12,7 +12,7 @@ class Config:
 		self.use_word_emb_scratch = False
 		self.use_phobert = True
 		self.use_charCNN = False
-		self.cross_view = False
+		self.cross_view = True
 
 		# file location
 		self.data_folder = 'data'
@@ -49,19 +49,26 @@ class Config:
 		self.concat_first_layer = False
 		self.phobert_layer = -1  # range: [0, ..., 12]
 		self.phobert_subword = 'first'  # sum or first
-		self.fine_tune = True
-		self.word_emb_dim = 100
+		self.fine_tune = False
+		self.word_emb_dim = 75
 		self.minimum_frequency = 2
 		self.phobert_dim = 768
-		self.pos_emb_dim = 100
+		self.pos_emb_dim = 50
 		self.charCNN_dim = 0  # set later in code about 150
 
 		# sentence level
 		self.length_ordered = False
-		self.teacher_dropout = 0.33
+		self.use_linearization = True
+		self.use_distance = True
+		self.arc_mlp_size = 400
+		self.lab_mlp_size = 400
+
+		# dropout
+		self.word_dropout = 0.33
+		self.word_dropout_student = 0.5
+		self.rec_dropout = 0.25
+		self.teacher_dropout = 0.5
 		self.student_dropout = 0.5
-		self.arc_mlp_size = 500
-		self.lab_mlp_size = 100
 
 		# encoder
 		self.encoder = 'biLSTM'  # biLSTM, transformer
@@ -83,23 +90,26 @@ class Config:
 		self.print_step = 50
 		self.eval_dev_every = 500  # how often to evaluate on the dev set
 		self.eval_test_every = 5000
+		self.max_waiting_adam = 3000
 		if self.use_small_subset:
 			self.batch_size = 16
 			self.print_step = 2
 			self.eval_dev_every = 10
-			self.eval_test_every = 30
+			self.eval_test_every = 50
 			self.max_step = 100
 			self.teacher_only_step = 0
+			self.max_waiting_adam = 20
 
 		# cross-view
 		self.gold_student_step = 10000000
 		self.print_dev_student = True
 
 		# optimizer
-		# momentum for cross-view training
 		self.use_momentum = False  # crossview should use
-		self.lr_momentum = 0.2  # base learning rate
-		self.student_lr_momentum = 0.1
+		self.use_scheduler = False
+		# momentum for cross-view training
+		self.lr_momentum = 0.5  # base learning rate
+		self.student_lr_momentum = 0.2
 		self.pos_lambda = 1
 		self.momentum = 0.9  # momentum
 		self.grad_clip = 1.0  # maximum gradient norm during optimization
@@ -107,8 +117,10 @@ class Config:
 		self.lr_decay = 0.005  # factor for gradually decaying the lr
 
 		# adamw
-		self.lr_adamw = 2e-3
-		self.beta = (0.9, 0.9)
+		self.grad_clip_adam = True
+		self.lr_adam = 3e-3
+		self.adam_beta = (0.9, 0.95)
+		self.adam_eps = 1e-6
 
 		# other
 		self.seed = 1234

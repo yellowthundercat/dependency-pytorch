@@ -9,6 +9,8 @@ from utils import utils
 from preprocess import dataset
 from utils.find_error_example import write_file_error_example
 from utils import utils_train
+from torch import nn, optim
+from preprocess.char import ROOT_LABEL
 
 class DependencyParser:
 	def __init__(self, config):
@@ -43,42 +45,50 @@ class DependencyParser:
 			for model_student in self.model_students:
 				model_student.to(self.device)
 
-	def internal_train_student(self, words, index_ids, last_index_position, tags, chars, heads, labels, masks):
+	def internal_train_student(self, words, index_ids, last_index_position, tags, chars, heads, labels, masks, lengths):
 		total_loss = 0
 		for student_model, student_optimizer, student_scheduler in zip(self.model_students, self.optimizer_students, self.scheduler_students):
 			student_optimizer.zero_grad()
 			student_model.train()
 			student_model.encoder.mode = 'student'
-			loss = student_model(words, index_ids, last_index_position, tags, chars, heads, labels, masks)
+			loss = student_model(words, index_ids, last_index_position, tags, chars, heads, labels, masks, lengths)
 			loss.backward()
+			if self.config.grad_clip_adam and not self.config.use_momentum:
+				torch.nn.utils.clip_grad_norm_(student_model.parameters(), 1.0)
 			student_optimizer.step()
-			student_scheduler.step()
+			if self.config.use_scheduler:
+				student_scheduler.step()
 			total_loss += loss.item()
 		return total_loss
 
 	def train_gold_student(self, gold_batch):
-		words, index_ids, last_index_position, tags, heads, labels, masks, lengths, origin_words, chars = gold_batch
-		return self.internal_train_student(words, index_ids, last_index_position, tags, chars, heads, labels, masks)
+		words, index_ids, last_index_position, tags, heads, labels, masks, lengths, origin_words, chars, new_order = gold_batch
+		return self.internal_train_student(words, index_ids, last_index_position, tags, chars, heads, labels, masks, lengths)
 
 	def train_student(self, unlabel_batch):
 		# use teacher to predict
 		self.model.eval()
 		self.model.encoder.mode = 'teacher'
-		words, index_ids, last_index_position, tags, heads, labels, masks, lengths, origin_words, chars = unlabel_batch
-		head_list, lab_list = self.model.predict_batch(words, index_ids, last_index_position, tags, chars, lengths, masks)
-		predict_heads = dataset.pad([head.tolist() for head in head_list])
-		predict_labels = dataset.pad([lab.tolist() for lab in lab_list])
-		return self.internal_train_student(words, index_ids, last_index_position, tags, chars, predict_heads, predict_labels, masks)
+		words, index_ids, last_index_position, tags, heads, labels, masks, lengths, origin_words, chars, new_order = unlabel_batch
+		head_list, lab_list = self.model.predict_batch(words, index_ids, last_index_position, tags, chars, heads, labels, lengths, masks)
+		predict_heads = [[0] + one_head.tolist() for one_head in head_list]
+		predict_labels = [[self.corpus.vocab.l2i[ROOT_LABEL]] + one_lab for one_lab in lab_list]
+		predict_heads = dataset.pad(predict_heads)
+		predict_labels = dataset.pad(predict_labels)
+		return self.internal_train_student(words, index_ids, last_index_position, tags, chars, predict_heads, predict_labels, masks, lengths)
 
 	def train_teacher(self, train_batch):
-		words, index_ids, last_index_position, tags, heads, labels, masks, lengths, origin_words, chars = train_batch
+		words, index_ids, last_index_position, tags, heads, labels, masks, lengths, origin_words, chars, new_order = train_batch
 		self.optimizer.zero_grad()
 		self.model.train()
 		self.model.encoder.mode = 'teacher'
-		loss = self.model(words, index_ids, last_index_position, tags, chars, heads, labels, masks)
+		loss = self.model(words, index_ids, last_index_position, tags, chars, heads, labels, masks, lengths)
 		loss.backward()
+		if self.config.grad_clip_adam and not self.config.use_momentum:
+			torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1.0)
 		self.optimizer.step()
-		self.scheduler.step()
+		if self.config.use_scheduler:
+			self.scheduler.step()
 		return loss.item()
 
 	def get_train_batch(self, batches, is_label=True):
@@ -96,12 +106,11 @@ class DependencyParser:
 		print('start training')
 
 		# fine tune bert
-		tsfm = self.encoder.phobert
-		for child in tsfm.children():
-			for param in child.parameters():
-				if not param.requires_grad:
-					print("whoopsies")
-				param.requires_grad = self.config.fine_tune
+		if self.config.use_phobert:
+			tsfm = self.encoder.phobert
+			for child in tsfm.children():
+				for param in child.parameters():
+					param.requires_grad = self.config.fine_tune
 
 		history = defaultdict(list)
 		total_teacher_loss = total_student_loss = 0
@@ -129,6 +138,15 @@ class DependencyParser:
 					total_student_loss += self.train_student(unlabel_batch)
 				count_student += 5
 
+			# switch optimizer
+			if global_step - self.saving_step > self.config.max_waiting_adam and not self.config.use_momentum and not self.using_amsgrad:
+				print('Switching to AMSGrad')
+				self.using_amsgrad = True
+				self.optimizer = optim.Adam(self.model.parameters(), amsgrad=True, lr=self.config.lr_adam, betas=self.config.adam_beta, eps=1e-6)
+				if self.config.cross_view:
+					for i_m in range(len(self.model_students)):
+						self.optimizer_students[i_m] = optim.Adam(self.model_students[i_m].parameters(), amsgrad=True, lr=self.config.lr_adam, betas=self.config.adam_beta, eps=1e-6)
+
 			# print result
 			if global_step % self.config.print_step == 0 or global_step == self.config.max_step:
 				t1 = time.time()
@@ -150,7 +168,7 @@ class DependencyParser:
 				history['uas'].append(uas)
 				history['las'].append(las)
 				print(f'EVAL DEV: val loss = {val_loss:.4f}, UAS = {uas:.4f}, LAS = {las:.4f}')
-				if uas + las > self.best_uas + self.best_las:
+				if las > self.best_las:
 					print('save new best model')
 					self.best_las = las
 					self.best_uas = uas
@@ -195,16 +213,23 @@ class DependencyParser:
 		dev_length_list = []
 		dev_head_list = []
 		dev_lab_list = []
+		dev_new_order = []
 		with torch.no_grad():
 			for batch in dev_batches:
 				dev_batch_length += 1
-				words, index_ids, last_index_position, tags, heads, labels, masks, lengths, origin_words, chars = batch
+				words, index_ids, last_index_position, tags, heads, labels, masks, lengths, origin_words, chars, new_order = batch
 				loss, head_list, lab_list = model.predict_batch_with_loss(words, index_ids, last_index_position, tags, chars, heads, labels, masks, lengths)
 				stats['val_loss'] += loss.item()
 				dev_head_list += head_list
 				dev_lab_list += lab_list
 				dev_word_list += origin_words
 				dev_length_list += lengths
+				dev_new_order += new_order
+
+		dev_head_list = utils.unsort(dev_head_list, dev_new_order)
+		dev_lab_list = utils.unsort(dev_lab_list, dev_new_order)
+		dev_word_list = utils.unsort(dev_word_list, dev_new_order)
+		dev_length_list = utils.unsort(dev_length_list, dev_new_order)
 
 		utils.write_conll(self.corpus.vocab, dev_word_list, dev_head_list, dev_lab_list, dev_length_list,
 											self.config.parsing_file)
@@ -239,11 +264,12 @@ class DependencyParser:
 		gold_head_list = []
 		gold_lab_list = []
 		pos_list = []
+		new_order_list = []
 		with torch.no_grad():
 			for batch in test_batches:
 				test_batch_length += 1
-				words, index_ids, last_index_position, tags, heads, labels, masks, lengths, origin_words, chars = batch
-				head_list, lab_list = model.predict_batch(words, index_ids, last_index_position, tags, chars, lengths, masks)
+				words, index_ids, last_index_position, tags, heads, labels, masks, lengths, origin_words, chars, new_order = batch
+				head_list, lab_list = model.predict_batch(words, index_ids, last_index_position, tags, chars, heads, labels, lengths, masks)
 				gold_head_list += [head.data.numpy()[:lent] for head, lent in zip(heads.cpu(), lengths)]
 				gold_lab_list += [lab.data.numpy()[:lent] for lab, lent in zip(labels.cpu(), lengths)]
 				pos_list += [tag.data.numpy()[:lent] for tag, lent in zip(tags.cpu(), lengths)]
@@ -251,6 +277,16 @@ class DependencyParser:
 				test_lab_list += lab_list
 				test_word_list += origin_words
 				test_length_list += lengths
+				new_order_list += new_order
+
+			gold_head_list = utils.unsort(gold_head_list, new_order_list)
+			gold_lab_list = utils.unsort(gold_lab_list, new_order_list)
+			pos_list = utils.unsort(pos_list, new_order_list)
+			test_head_list = utils.unsort(test_head_list, new_order_list)
+			test_lab_list = utils.unsort(test_lab_list, new_order_list)
+			test_word_list = utils.unsort(test_word_list, new_order_list)
+			test_length_list = utils.unsort(test_length_list, new_order_list)
+
 			utils.write_conll(self.corpus.vocab, test_word_list, test_head_list, test_lab_list, test_length_list,
 												self.config.parsing_file)
 			write_file_error_example(self.config, self.corpus.vocab, test_word_list, test_head_list, gold_head_list, test_lab_list,

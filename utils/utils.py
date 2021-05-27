@@ -32,10 +32,10 @@ def write_conll(vocab, words, head_list, lab_list, lengths, file_name):
 	output_file = open(file_name, 'w', encoding='utf-8')
 	for index, sentence_length in enumerate(lengths):
 		word_index = 0
+		words[index] = words[index][1:]  # remove root
 		for word, head, lab in zip(words[index], head_list[index], lab_list[index]):
-			if word_index > 0:
-				output_file.write(f'{word_index}\t{word}\t{word}\t-\t-\t-\t{head}\t{vocab.i2l[lab]}\t-\t-\n')
 			word_index += 1
+			output_file.write(f'{word_index}\t{word}\t{word}\t-\t-\t-\t{head}\t{vocab.i2l[lab]}\t-\t-\n')
 		output_file.write('\n')
 
 # ud utils
@@ -53,3 +53,6 @@ def get_attention_heads(attention_heads, attention_requires, attention_tops):
 	embedding = []
 	# for layer in range(n_layer):
 	# 	for
+
+def unsort(a, new_order):
+	return [a[a_indedx] for a_indedx in new_order]
