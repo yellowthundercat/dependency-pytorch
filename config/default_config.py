@@ -12,7 +12,7 @@ class Config:
 		self.use_word_emb_scratch = False
 		self.use_phobert = True
 		self.use_charCNN = False
-		self.cross_view = False
+		self.cross_view = True
 
 		# file location
 		self.data_folder = 'data'

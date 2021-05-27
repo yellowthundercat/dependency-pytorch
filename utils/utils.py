@@ -53,3 +53,6 @@ def get_attention_heads(attention_heads, attention_requires, attention_tops):
 	embedding = []
 	# for layer in range(n_layer):
 	# 	for
+
+def unsort(a, new_order):
+	return [a[a_indedx] for a_indedx in new_order]

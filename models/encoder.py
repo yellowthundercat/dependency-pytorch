@@ -52,6 +52,7 @@ class Encoder(nn.Module):
 										  dropout=config.teacher_dropout, rec_dropout=config.rec_dropout, highway_func=torch.tanh)
 			self.parserlstm_h_init = nn.Parameter(torch.zeros(2 * config.rnn_1_depth, 1, config.rnn_size))
 			self.parserlstm_c_init = nn.Parameter(torch.zeros(2 * config.rnn_1_depth, 1, config.rnn_size))
+			self.rnn1 = nn.LSTM(input_size=input_dim, hidden_size=config.rnn_size, batch_first=True, bidirectional=True, dropout=config.teacher_dropout, num_layers=config.rnn_1_depth)
 			if config.rnn_2_depth > 0:
 				rnn2_input_dim = 2*config.rnn_size
 				self.parserlstm2 = HighwayLSTM(rnn2_input_dim, self.rnn_size, config.rnn_2_depth, batch_first=True,
@@ -69,8 +70,7 @@ class Encoder(nn.Module):
 
 	def forward_emb(self, words, index_ids, last_index_position, postags, chars, lengths):
 		def pack(x):
-			return pack_padded_sequence(x, lengths, batch_first=True, enforce_sorted=False)
-
+			return pack_padded_sequence(x, lengths, batch_first=True)
 		# Look up
 		inputs = []
 		if self.config.use_word_emb_scratch:
@@ -119,8 +119,6 @@ class Encoder(nn.Module):
 		return inputs, input_batch_size
 
 	def forward(self, words, index_ids, last_index_position, postags, chars, masks, lengths):
-		def pack(x):
-			return pack_padded_sequence(x, lengths, batch_first=True)
 
 		inputs, input_batch_size = self.forward_emb(words, index_ids, last_index_position, postags, chars, lengths)
 
@@ -131,6 +129,7 @@ class Encoder(nn.Module):
 			rnn1_out, _ = self.parserlstm(lstm_inputs, lengths, hx=(
 			self.parserlstm_h_init.expand(2 * self.config.rnn_1_depth, words.size(0), self.rnn_size).contiguous(),
 			self.parserlstm_c_init.expand(2 * self.config.rnn_1_depth, words.size(0), self.rnn_size).contiguous()))
+			#rnn1_out, _ = self.rnn1(lstm_inputs)
 
 			rnn1_out_padded, _ = pad_packed_sequence(rnn1_out, batch_first=True)
 			uni_fw = rnn1_out_padded[:, :, :self.rnn_size]
