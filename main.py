@@ -10,6 +10,7 @@ from preprocess import dataset
 from utils.find_error_example import write_file_error_example
 from utils import utils_train
 from torch import nn, optim
+from preprocess.char import ROOT_LABEL
 
 class DependencyParser:
 	def __init__(self, config):
@@ -69,9 +70,11 @@ class DependencyParser:
 		self.model.eval()
 		self.model.encoder.mode = 'teacher'
 		words, index_ids, last_index_position, tags, heads, labels, masks, lengths, origin_words, chars, new_order = unlabel_batch
-		head_list, lab_list = self.model.predict_batch(words, index_ids, last_index_position, tags, chars, lengths, masks)
-		predict_heads = dataset.pad([head.tolist() for head in head_list])
-		predict_labels = dataset.pad([lab.tolist() for lab in lab_list])
+		head_list, lab_list = self.model.predict_batch(words, index_ids, last_index_position, tags, chars, heads, labels, lengths, masks)
+		predict_heads = [[0] + one_head.tolist() for one_head in head_list]
+		predict_labels = [[self.corpus.vocab.l2i[ROOT_LABEL]] + one_lab for one_lab in lab_list]
+		predict_heads = dataset.pad(predict_heads)
+		predict_labels = dataset.pad(predict_labels)
 		return self.internal_train_student(words, index_ids, last_index_position, tags, chars, predict_heads, predict_labels, masks, lengths)
 
 	def train_teacher(self, train_batch):
@@ -107,8 +110,6 @@ class DependencyParser:
 			tsfm = self.encoder.phobert
 			for child in tsfm.children():
 				for param in child.parameters():
-					if not param.requires_grad:
-						print("whoopsies")
 					param.requires_grad = self.config.fine_tune
 
 		history = defaultdict(list)
@@ -119,7 +120,6 @@ class DependencyParser:
 			unlabel_batches = self.unlabel_corpus.dataset.batches(self.config.batch_size, length_ordered=self.config.length_ordered)
 		# odd for teacher, even for student
 		t0 = time.time()
-		using_amsgrad = False
 		for global_step in range(self.saving_step+1, self.config.max_step+1):
 			# train
 			if global_step <= self.config.teacher_only_step or global_step % 2 == 1 or self.config.cross_view is False:
@@ -139,9 +139,9 @@ class DependencyParser:
 				count_student += 5
 
 			# switch optimizer
-			if global_step - self.saving_step > self.config.max_waiting_adam and not self.config.use_momentum and not using_amsgrad:
+			if global_step - self.saving_step > self.config.max_waiting_adam and not self.config.use_momentum and not self.using_amsgrad:
 				print('Switching to AMSGrad')
-				using_amsgrad = True
+				self.using_amsgrad = True
 				self.optimizer = optim.Adam(self.model.parameters(), amsgrad=True, lr=self.config.lr_adam, betas=self.config.adam_beta, eps=1e-6)
 				if self.config.cross_view:
 					for i_m in range(len(self.model_students)):

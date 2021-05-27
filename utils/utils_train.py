@@ -39,6 +39,7 @@ def init_model(main_self, config):
 		main_self.model = Parser(main_self.encoder, len(main_self.corpus.vocab.l2i), config, 'bi', 'bi', config.teacher_dropout)
 	main_self.saving_step = 0
 	main_self.best_las = main_self.best_uas = 0
+	main_self.using_amsgrad = False
 	main_self.best_loss = 100
 	if config.cross_view:
 		init_model_student(main_self, config, get_optimizer)
@@ -55,6 +56,7 @@ def load_model(main_self, all_model, config):
 	main_self.best_uas = all_model['uas']
 	main_self.best_las = all_model['las']
 	main_self.best_loss = all_model['loss']
+	main_self.using_amsgrad = all_model['using_amsgrad']
 	if config.cross_view:
 		main_self.model_students = all_model['model_students']
 		for student_model in main_self.model_students:
@@ -71,7 +73,8 @@ def save_model(main_self, config):
 		'uas': main_self.best_uas,
 		'las': main_self.best_las,
 		'loss': main_self.best_loss,
-		'scheduler': main_self.scheduler
+		'scheduler': main_self.scheduler,
+		'using_amsgrad': main_self.using_amsgrad
 	}
 	if config.cross_view:
 		all_model['model_students'] = main_self.model_students
