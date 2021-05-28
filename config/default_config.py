@@ -9,10 +9,10 @@ class Config:
 		self.use_small_subset = True
 		self.use_pos = True
 		self.pos_type = 'vn'  # vn, uni, lab
-		self.use_word_emb_scratch = False
+		self.use_word_emb_scratch = True
 		self.use_phobert = True
-		self.use_charCNN = False
-		self.cross_view = True
+		self.use_charCNN = True
+		self.cross_view = False
 
 		# file location
 		self.data_folder = 'data'
@@ -47,7 +47,7 @@ class Config:
 
 		# word level
 		self.concat_first_layer = False
-		self.phobert_layer = -1  # range: [0, ..., 12]
+		self.phobert_layer = 9  # range: [0, ..., 12]
 		self.phobert_subword = 'first'  # sum or first
 		self.fine_tune = False
 		self.word_emb_dim = 75
@@ -66,8 +66,8 @@ class Config:
 		# dropout
 		self.word_dropout = 0.33
 		self.word_dropout_student = 0.5
-		self.rec_dropout = 0.25
-		self.teacher_dropout = 0.5
+		self.rec_dropout = 0.0
+		self.teacher_dropout = 0.33
 		self.student_dropout = 0.5
 
 		# encoder

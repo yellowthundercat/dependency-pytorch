@@ -168,7 +168,7 @@ class DependencyParser:
 				history['uas'].append(uas)
 				history['las'].append(las)
 				print(f'EVAL DEV: val loss = {val_loss:.4f}, UAS = {uas:.4f}, LAS = {las:.4f}')
-				if las > self.best_las:
+				if las + uas > self.best_las + self.best_uas:
 					print('save new best model')
 					self.best_las = las
 					self.best_uas = uas
