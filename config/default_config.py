@@ -12,7 +12,7 @@ class Config:
 		self.use_word_emb_scratch = True
 		self.use_phobert = True
 		self.use_charCNN = True
-		self.cross_view = False
+		self.cross_view = True
 
 		# file location
 		self.data_folder = 'data'
@@ -73,8 +73,8 @@ class Config:
 		# encoder
 		self.encoder = 'biLSTM'  # biLSTM, transformer
 		self.rnn_size = 400  # output encode = 4*rnn_size (2 biLSTM)
-		self.rnn_1_depth = 3
-		self.rnn_2_depth = 0
+		self.rnn_1_depth = 1
+		self.rnn_2_depth = 2
 		self.transformer_1_depth = 2
 		self.transformer_2_depth = 2
 		self.transformer_dim = 128
@@ -119,6 +119,7 @@ class Config:
 		# adamw
 		self.grad_clip_adam = True
 		self.lr_adam = 3e-3
+		self.lr_adam_student = 1e-3
 		self.adam_beta = (0.9, 0.95)
 		self.adam_eps = 1e-6
 

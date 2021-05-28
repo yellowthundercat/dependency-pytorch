@@ -14,9 +14,11 @@ class LRAdamWPolicy(object):
 		return max(0.0, float(self.num_training_steps - current_step) / float(max(1, self.num_training_steps - self.num_warmup_steps)))
 
 # follow phoNLP
-def adamW(model, config, base_lr=None):
-	if base_lr is None:
+def adamW(model, config, mode):
+	if mode is 'teacher':
 		base_lr = config.lr_adam
+	else:
+		base_lr = config.lr_adam_student
 	if config.fine_tune:
 		params = model.named_parameters()
 		no_decay = ["bias", "LayerNorm.bias", "LayerNorm.weight"]
@@ -49,9 +51,11 @@ class LRPolicy(object):
 		return update_factor
 
 # follow cross-view training
-def momentum(model, config, base_lr=None):
-	if base_lr is None:
+def momentum(model, config, mode):
+	if mode == 'teacher':
 		base_lr = config.lr_momentum
+	else:
+		base_lr = config.student_lr_momentum
 	params = model.parameters()
 	optimizer = torch.optim.SGD(params, lr=base_lr, momentum=config.momentum)
 	if config.use_scheduler:

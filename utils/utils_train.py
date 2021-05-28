@@ -20,11 +20,11 @@ def init_model_student(main_self, config, get_optimizer):
 		main_self.model_students = [
 			Parser(main_self.encoder, len(main_self.corpus.vocab.l2i), config, 'trans1', 'trans1', config.student_dropout),
 		]
-	main_self.optimizer, main_self.scheduler = get_optimizer(main_self.model, config)
+	main_self.optimizer, main_self.scheduler = get_optimizer(main_self.model, config, 'teacher')
 	main_self.optimizer_students = []
 	main_self.scheduler_students = []
 	for model in main_self.model_students:
-		opt, sche = get_optimizer(model, config)
+		opt, sche = get_optimizer(model, config, 'student')
 		main_self.optimizer_students.append(opt)
 		main_self.scheduler_students.append(sche)
 
@@ -44,7 +44,7 @@ def init_model(main_self, config):
 	if config.cross_view:
 		init_model_student(main_self, config, get_optimizer)
 	else:
-		main_self.optimizer, main_self.scheduler = get_optimizer(main_self.model, config)
+		main_self.optimizer, main_self.scheduler = get_optimizer(main_self.model, config, 'teacher')
 
 def load_model(main_self, all_model, config):
 	main_self.encoder = all_model['encoder']

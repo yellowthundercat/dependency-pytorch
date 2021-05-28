@@ -136,11 +136,12 @@ class Encoder(nn.Module):
 			uni_bw = rnn1_out_padded[:, :, self.rnn_size:]
 
 			if self.config.rnn_2_depth > 0:
-				rnn2_in = rnn1_out
+				rnn2_in = rnn1_out_padded
 				if self.mode == 'teacher':
-					rnn2_in = self.worddrop(rnn2_in, self.drop_replacement2)
+					rnn2_in = self.dropout(rnn2_in)
 				else:
-					rnn2_in = self.worddrop_student(rnn2_in, self.drop_replacement2)
+					rnn2_in = self.dropout_student(rnn2_in)
+				rnn2_in = pack_padded_sequence(rnn2_in, lengths, batch_first=True)
 				rnn2_out, _ = self.parserlstm2(rnn2_in, lengths, hx=(
 				self.parserlstm_h_init2.expand(2 * self.config.rnn_2_depth, words.size(0), self.rnn_size).contiguous(),
 				self.parserlstm_c_init2.expand(2 * self.config.rnn_2_depth, words.size(0), self.rnn_size).contiguous()))

@@ -200,6 +200,9 @@ class Dataset:
 			self.input_ids = input_ids
 			self.last_index_position = last_index_position
 			self.device = device
+		else:
+			self.input_ids = []
+			self.last_index_position = []
 		self.init_bucket()
 
 	def init_bucket(self):
