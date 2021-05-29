@@ -2,7 +2,7 @@ from collections import defaultdict, Counter
 import os
 import time
 import torch
-from transformers import AutoTokenizer
+from transformers import AutoTokenizer, AutoModel
 
 from config.default_config import Config
 from utils import utils
@@ -19,13 +19,14 @@ class DependencyParser:
 
 		# word embedding
 		print('preprocess corpus')
-		tokenizer = None
+		tokenizer = phobert = None
 		if config.use_phobert:
 			tokenizer = AutoTokenizer.from_pretrained("vinai/phobert-base")
-		self.corpus = dataset.Corpus(config, self.device, tokenizer)
+			phobert = AutoModel.from_pretrained("vinai/phobert-base", output_hidden_states=True)
+		self.corpus = dataset.Corpus(config, self.device, tokenizer, phobert)
 		if config.cross_view and config.mode == 'train':
 			print('prepare unlabel data')
-			self.unlabel_corpus = dataset.Unlabel_Corpus(config, self.device, self.corpus.vocab, tokenizer)
+			self.unlabel_corpus = dataset.Unlabel_Corpus(config, self.device, self.corpus.vocab, tokenizer, phobert)
 		print('total vocab word', len(self.corpus.vocab.w2i))
 		print('total vocab character', len(self.corpus.vocab.c2i))
 		print('total vocab postag', len(self.corpus.vocab.t2i))
@@ -112,11 +113,11 @@ class DependencyParser:
 		print('start training')
 
 		# fine tune bert
-		if self.config.use_phobert:
-			tsfm = self.encoder.phobert
-			for child in tsfm.children():
-				for param in child.parameters():
-					param.requires_grad = self.config.fine_tune
+		# if self.config.use_phobert:
+		# 	tsfm = self.encoder.phobert
+		# 	for child in tsfm.children():
+		# 		for param in child.parameters():
+		# 			param.requires_grad = self.config.fine_tune
 
 		history = defaultdict(list)
 		total_teacher_loss = total_student_loss = 0

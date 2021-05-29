@@ -163,7 +163,8 @@ class Vocab:
 
 
 class Dataset:
-	def __init__(self, config, sentence_list, vocab, device, origin_ordered=False):
+	def __init__(self, config, sentence_list, vocab, device, phobert, origin_ordered=False, cache=False):
+		self.phobert = phobert
 		self.orgin_ordered = origin_ordered
 		self.words = []
 		self.tags = []
@@ -196,10 +197,14 @@ class Dataset:
 				last_index_position.append(sentence.last_index_position)
 			self.words.append([vocab.w2i[preprocess_word(word)] for word in sentence.word])
 
+		self.cache = cache
 		if config.use_phobert:
 			self.input_ids = input_ids
 			self.last_index_position = last_index_position
+			self.phobert_embs = []
 			self.device = device
+			if cache:
+				self.get_all_embedding()
 		else:
 			self.input_ids = []
 			self.last_index_position = []
@@ -257,6 +262,8 @@ class Dataset:
 		if self.config.use_phobert:
 			self.input_ids = [self.input_ids[i] for i in new_order]
 			self.last_index_position = [self.last_index_position[i] for i in new_order]
+			if self.cache:
+				self.phobert_embs = [self.phobert_embs[i] for i in new_order]
 		self.chars = [self.chars[i] for i in new_order]
 		self.tags = [self.tags[i] for i in new_order]
 		self.heads = [self.heads[i] for i in new_order]
@@ -307,13 +314,17 @@ class Dataset:
 			np.random.shuffle(batch_order)
 		if length_ordered:
 			self.order()
-		index_ids = last_index_position = []
+		index_ids = last_index_position = phobert_emb = []
 		new_order = self.order_batch(batch_size)
 		for i in batch_order:
 			words = pad(self.words[i:i + batch_size])
 			if self.config.use_phobert:
 				index_ids = pad_phobert(self.input_ids[i:i + batch_size]).to(self.device)
 				last_index_position = pad(self.last_index_position[i:i + batch_size])
+				if self.cache:
+					phobert_emb = pad_word_embedding(self.phobert_embs[i:i+batch_size], self.config)
+				else:
+					phobert_emb = pad_word_embedding(self.get_phobert_embedding(i, i+batch_size), self.config)
 			chars = pad_char(self.chars[i:i + batch_size])
 			tags = pad(self.tags[i:i + batch_size])
 			heads = pad(self.heads[i:i + batch_size])
@@ -321,7 +332,7 @@ class Dataset:
 			masks = pad_mask(self.labels[i:i + batch_size])
 			lengths = self.lengths[i:i + batch_size]
 			origin_words = self.origin_words[i:i + batch_size]
-			yield words, index_ids, last_index_position, tags, heads, labels, masks, lengths, origin_words, chars, new_order[i: i+batch_size]
+			yield words, phobert_emb, last_index_position, tags, heads, labels, masks, lengths, origin_words, chars, new_order[i: i+batch_size]
 		# return origin order
 		self.swap_data(new_order)
 
@@ -335,10 +346,11 @@ class Dataset:
 		self.chars += other.chars
 		self.input_ids += other.input_ids
 		self.last_index_position += other.last_index_position
+		self.phobert_embs += other.phobert_embs
 
 
 class Corpus:
-	def __init__(self, config, device, tokenizer):
+	def __init__(self, config, device, tokenizer, phobert):
 		train_list = read_data(config.pos_train_file, tokenizer, config)
 		dev_list = read_data(config.pos_dev_file, tokenizer, config)
 		test_list = read_data(config.pos_test_file, tokenizer, config)
@@ -349,21 +361,21 @@ class Corpus:
 			self.vocab = Vocab(config, train_list)
 			torch.save(self.vocab, config.vocab_file)
 		if config.mode == 'train':
-			self.train = Dataset(config, train_list, self.vocab, device, False)
-			self.dev = Dataset(config, dev_list, self.vocab, device, True)
-		self.test = Dataset(config, test_list, self.vocab, device, True)
+			self.train = Dataset(config, train_list, self.vocab, device, phobert, False, cache=True)
+			self.dev = Dataset(config, dev_list, self.vocab, device, phobert, True)
+		self.test = Dataset(config, test_list, self.vocab, device, phobert, True)
 
 class Unlabel_Corpus:
-	def __init__(self, config, device, vocab, tokenizer):
+	def __init__(self, config, device, vocab, tokenizer, phobert):
 		self.config = config
-		self.dataset = Dataset(config, [], vocab, device)
+		self.dataset = Dataset(config, [], vocab, device, phobert, False)
 		for file_name in os.listdir(config.unlabel_folder):
 			print('preprocess file:', file_name)
 			if file_name.endswith('.txt') is False:
 				continue
 			input_file = os.path.join(config.unlabel_folder, file_name)
 			unlabel_list = read_unlabel_data(input_file, tokenizer, vocab)
-			current_dataset = Dataset(config, unlabel_list, vocab, device, False)
+			current_dataset = Dataset(config, unlabel_list, vocab, device, phobert, False)
 			self.dataset.concat(current_dataset)
 		self.dataset.init_bucket()
 		print('total length unlabel corpus:', len(self.dataset.lengths))
