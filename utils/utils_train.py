@@ -64,7 +64,10 @@ def load_model(main_self, all_model, config):
 		main_self.optimizer_students = all_model['optimizer_students']
 		main_self.scheduler_students = all_model['scheduler_students']
 
-def save_model(main_self, config):
+def save_model(main_self, config, model_type='best'):
+	file_path = main_self.config.model_file
+	if model_type != 'best':
+		file_path = main_self.config.last_model_file
 	all_model = {
 		'encoder': main_self.encoder,
 		'model': main_self.model,
@@ -80,4 +83,4 @@ def save_model(main_self, config):
 		all_model['model_students'] = main_self.model_students
 		all_model['optimizer_students'] = main_self.optimizer_students
 		all_model['scheduler_students'] = main_self.scheduler_students
-	torch.save(all_model, main_self.config.model_file)
+	torch.save(all_model, file_path)

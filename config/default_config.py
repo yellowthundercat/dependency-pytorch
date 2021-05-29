@@ -5,10 +5,10 @@ class Config:
 		# general
 		self.model_name = 'test_model_biaffine'
 		self.mode = 'train'  # option: 'train', 'evaluate', 'annotate'
-		self.continue_train = False
+		self.continue_train = True
 		self.use_small_subset = True
 		self.use_pos = True
-		self.pos_type = 'vn'  # vn, uni, lab
+		self.pos_type = 'lab'  # vn, uni, lab
 		self.use_word_emb_scratch = True
 		self.use_phobert = True
 		self.use_charCNN = True
@@ -21,7 +21,8 @@ class Config:
 		self.annotate_file = os.path.join(self.data_folder, 'annotate.txt')
 		self.error_sample_file = os.path.join(self.data_folder, 'error_sample.txt')
 		self.save_folder = os.path.join(self.data_folder, self.model_name)
-		self.model_file = os.path.join(self.save_folder, 'all_model.pt')
+		self.model_file = os.path.join(self.save_folder, 'best_model.pt')
+		self.last_model_file = os.path.join(self.save_folder, 'last_model.pt')
 		self.config_file = os.path.join(self.save_folder, 'config.pickle')
 		self.vocab_file = os.path.join(self.save_folder, 'vocab.pickle')
 		if self.use_small_subset:
@@ -51,7 +52,7 @@ class Config:
 		self.phobert_subword = 'first'  # sum or first
 		self.fine_tune = False
 		self.word_emb_dim = 75
-		self.minimum_frequency = 2
+		self.minimum_frequency = 3
 		self.phobert_dim = 768
 		self.pos_emb_dim = 50
 		self.charCNN_dim = 0  # set later in code about 150
@@ -59,7 +60,7 @@ class Config:
 		# sentence level
 		self.length_ordered = False
 		self.use_linearization = True
-		self.use_distance = True
+		self.use_distance = False
 		self.arc_mlp_size = 400
 		self.lab_mlp_size = 400
 
@@ -85,7 +86,7 @@ class Config:
 		# train
 		self.max_step = 20000
 		self.max_waiting_step = 20000  # if not improve in this period -> stop
-		self.teacher_only_step = 50
+		self.teacher_only_step = 0
 		self.batch_size = 32
 		self.print_step = 50
 		self.eval_dev_every = 500  # how often to evaluate on the dev set
@@ -96,7 +97,7 @@ class Config:
 			self.print_step = 2
 			self.eval_dev_every = 10
 			self.eval_test_every = 50
-			self.max_step = 100
+			self.max_step = 20
 			self.teacher_only_step = 0
 			self.max_waiting_adam = 20
 
@@ -105,8 +106,8 @@ class Config:
 		self.print_dev_student = True
 
 		# optimizer
-		self.use_momentum = False  # crossview should use
-		self.use_scheduler = False
+		self.use_momentum = True  # crossview should use
+		self.use_scheduler = True
 		# momentum for cross-view training
 		self.lr_momentum = 0.5  # base learning rate
 		self.student_lr_momentum = 0.2
@@ -117,7 +118,7 @@ class Config:
 		self.lr_decay = 0.005  # factor for gradually decaying the lr
 
 		# adamw
-		self.grad_clip_adam = True
+		self.grad_clip_adam = False
 		self.lr_adam = 3e-3
 		self.lr_adam_student = 1e-3
 		self.adam_beta = (0.9, 0.95)

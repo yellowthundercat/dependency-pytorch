@@ -32,13 +32,19 @@ class DependencyParser:
 		self.config.pos_label_dim = len(self.corpus.vocab.t2i)
 
 		# model
-		if os.path.exists(config.model_file) and config.continue_train:
+		is_best = os.path.exists(config.model_file)
+		is_last = os.path.exists(config.last_model_file)
+		if (is_last or is_best) and config.continue_train:
 			print('We will continue training')
-			all_model = torch.load(config.model_file)
+			if is_last:
+				all_model = torch.load(config.last_model_file)
+			else:
+				all_model = torch.load(config.model_file)
 			utils_train.load_model(self, all_model, config)
 		else:
 			print('We will train model from scratch')
 			utils_train.init_model(self, config)
+		self.best_model = None
 		self.encoder.device = self.device
 		self.model.to(self.device)
 		if config.cross_view:
@@ -185,7 +191,7 @@ class DependencyParser:
 					break
 
 			# eval test
-			if global_step % self.config.eval_test_every == 0:
+			if global_step % self.config.eval_test_every == 0 and global_step != self.config.max_step:
 				print('current best step', self.saving_step)
 				self.evaluate()
 				print('-' * 30)
@@ -197,6 +203,9 @@ class DependencyParser:
 		print('best las:', self.best_las)
 		print('best step', self.saving_step)
 		print('-'*20)
+		self.best_model = None
+		self.saving_step = self.config.max_step
+		utils_train.save_model(self, self.config, 'last')
 		self.evaluate(use_best=False)
 		self.evaluate()
 		if self.config.cross_view:
@@ -239,7 +248,10 @@ class DependencyParser:
 
 	def evaluate(self, model_type=-1, use_best=True):  # -1 is teacher
 		if use_best:
-			all_model = torch.load(self.config.model_file)
+			if self.best_model is None:
+				self.best_model = all_model = torch.load(self.config.model_file)
+			else:
+				all_model = self.best_model
 			if model_type == -1:
 				model = all_model['model']
 				model.encoder = all_model['encoder']
