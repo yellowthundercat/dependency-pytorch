@@ -6,6 +6,7 @@ class Config:
 		self.model_name = 'test_model_biaffine'
 		self.mode = 'train'  # option: 'train', 'evaluate', 'annotate'
 		self.continue_train = True
+		self.add_more_vocab = True  # set false in code when load old vocab
 		self.use_small_subset = True
 		self.use_pos = True
 		self.pos_type = 'lab'  # vn, uni, lab
@@ -52,7 +53,7 @@ class Config:
 		self.phobert_subword = 'first'  # sum or first
 		self.fine_tune = False
 		self.word_emb_dim = 75
-		self.minimum_frequency = 3
+		self.minimum_frequency = 10
 		self.phobert_dim = 768
 		self.pos_emb_dim = 50
 		self.charCNN_dim = 0  # set later in code about 150

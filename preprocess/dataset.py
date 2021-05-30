@@ -314,12 +314,12 @@ class Dataset:
 			np.random.shuffle(batch_order)
 		if length_ordered:
 			self.order()
-		index_ids = last_index_position = phobert_emb = []
+		#index_ids = last_index_position = phobert_emb = []
 		new_order = self.order_batch(batch_size)
 		for i in batch_order:
 			words = pad(self.words[i:i + batch_size])
 			if self.config.use_phobert:
-				index_ids = pad_phobert(self.input_ids[i:i + batch_size]).to(self.device)
+				#index_ids = pad_phobert(self.input_ids[i:i + batch_size]).to(self.device)
 				last_index_position = pad(self.last_index_position[i:i + batch_size])
 				if self.cache:
 					phobert_emb = pad_word_embedding(self.phobert_embs[i:i+batch_size], self.config)
@@ -357,6 +357,7 @@ class Corpus:
 
 		if os.path.exists(config.vocab_file):
 			self.vocab = torch.load(config.vocab_file)
+			config.add_more_vocab = False
 		else:
 			self.vocab = Vocab(config, train_list)
 			torch.save(self.vocab, config.vocab_file)
@@ -374,7 +375,7 @@ class Unlabel_Corpus:
 			if file_name.endswith('.txt') is False:
 				continue
 			input_file = os.path.join(config.unlabel_folder, file_name)
-			unlabel_list = read_unlabel_data(input_file, tokenizer, vocab)
+			unlabel_list = read_unlabel_data(input_file, tokenizer, vocab, config)
 			current_dataset = Dataset(config, unlabel_list, vocab, device, phobert, False)
 			self.dataset.concat(current_dataset)
 		self.dataset.init_bucket()

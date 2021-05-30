@@ -22,7 +22,7 @@ class DependencyParser:
 		tokenizer = phobert = None
 		if config.use_phobert:
 			tokenizer = AutoTokenizer.from_pretrained("vinai/phobert-base")
-			phobert = AutoModel.from_pretrained("vinai/phobert-base", output_hidden_states=True)
+			phobert = AutoModel.from_pretrained("vinai/phobert-base", output_hidden_states=True).to(self.device)
 		self.corpus = dataset.Corpus(config, self.device, tokenizer, phobert)
 		if config.cross_view and config.mode == 'train':
 			print('prepare unlabel data')
@@ -182,6 +182,7 @@ class DependencyParser:
 					self.best_loss = val_loss
 					self.saving_step = global_step
 					utils_train.save_model(self, self.config)
+					self.best_model = None
 
 				if self.config.print_dev_student and self.config.cross_view:
 					for s_i, student_model in enumerate(self.model_students):
@@ -204,7 +205,6 @@ class DependencyParser:
 		print('best las:', self.best_las)
 		print('best step', self.saving_step)
 		print('-'*20)
-		self.best_model = None
 		self.saving_step = self.config.max_step
 		utils_train.save_model(self, self.config, 'last')
 		self.evaluate(use_best=False)
