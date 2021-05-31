@@ -53,7 +53,7 @@ class Config:
 		self.phobert_subword = 'first'  # sum or first
 		self.fine_tune = False
 		self.word_emb_dim = 75
-		self.minimum_frequency = 10
+		self.minimum_frequency = 50
 		self.phobert_dim = 768
 		self.pos_emb_dim = 50
 		self.charCNN_dim = 0  # set later in code about 150
@@ -75,8 +75,8 @@ class Config:
 		# encoder
 		self.encoder = 'biLSTM'  # biLSTM, transformer
 		self.rnn_size = 400  # output encode = 4*rnn_size (2 biLSTM)
-		self.rnn_1_depth = 1
-		self.rnn_2_depth = 2
+		self.rnn_1_depth = 2
+		self.rnn_2_depth = 1
 		self.transformer_1_depth = 2
 		self.transformer_2_depth = 2
 		self.transformer_dim = 128
@@ -85,8 +85,8 @@ class Config:
 		self.transformer_dropout = 0.2
 
 		# train
-		self.max_step = 20000
-		self.max_waiting_step = 20000  # if not improve in this period -> stop
+		self.max_step = 40000
+		self.max_waiting_step = 40000  # if not improve in this period -> stop
 		self.teacher_only_step = 0
 		self.batch_size = 32
 		self.print_step = 50

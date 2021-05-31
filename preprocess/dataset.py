@@ -355,7 +355,7 @@ class Corpus:
 		dev_list = read_data(config.pos_dev_file, tokenizer, config)
 		test_list = read_data(config.pos_test_file, tokenizer, config)
 
-		if os.path.exists(config.vocab_file):
+		if os.path.exists(config.vocab_file) and config.continue_train:
 			self.vocab = torch.load(config.vocab_file)
 			config.add_more_vocab = False
 		else:

@@ -1,7 +1,9 @@
 from collections import defaultdict, Counter
 import os
 import time
+import random
 import torch
+import numpy as np
 from transformers import AutoTokenizer, AutoModel
 
 from config.default_config import Config
@@ -198,7 +200,7 @@ class DependencyParser:
 				self.evaluate()
 				print('-' * 30)
 
-		# torch.save(self.config, self.config.config_file)
+		torch.save(self.config, self.config.config_file)
 		# utils.show_history_graph(history)
 		print('finish training')
 		print('best uas:', self.best_uas)
@@ -318,8 +320,15 @@ def main():
 	# load config
 	config = Config()
 	utils.ensure_dir(config.save_folder)
-	if os.path.exists(config.config_file):
+	if os.path.exists(config.config_file) and config.continue_train:
 		config = torch.load(config.config_file)
+
+	# set seed
+	torch.manual_seed(config.seed)
+	np.random.seed(config.seed)
+	random.seed(config.seed)
+	if torch.cuda.is_available():
+		torch.cuda.manual_seed(config.seed)
 
 	t0 = time.time()
 	parser = DependencyParser(config)
