@@ -189,6 +189,10 @@ class DependencyParser:
 				if self.config.print_dev_student and self.config.cross_view:
 					for s_i, student_model in enumerate(self.model_students):
 						val_loss, uas, las = self.check_dev(student_model, 'student')
+						if uas + las > self.best_student + self.best_student * 0.0005:
+							print('save new best student')
+							utils_train.save_model(self, self.config, 'student')
+							self.best_student = uas + las
 						print(f'EVAL Student {s_i}: val loss = {val_loss:.4f}, UAS = {uas:.4f}, LAS = {las:.4f}')
 				print('-' * 20)
 				if global_step - self.saving_step > self.config.max_waiting_step:
@@ -214,6 +218,11 @@ class DependencyParser:
 		if self.config.cross_view:
 			for model_index, student_model in enumerate(self.model_students):
 				self.evaluate(model_index)
+		del self.best_model
+		self.best_model = None
+		print('-'*20)
+		print('best student:')
+		self.evaluate(0, use_best=False, use_best_student=True)
 
 	def check_dev(self, model, mode):
 		stats = Counter()
@@ -249,7 +258,7 @@ class DependencyParser:
 		uas, las = utils.ud_scores(self.config.dev_file, self.config.parsing_file)
 		return val_loss, uas, las
 
-	def evaluate(self, model_type=-1, use_best=True):  # -1 is teacher
+	def evaluate(self, model_type=-1, use_best=True, use_best_student=False):  # -1 is teacher
 		if use_best:
 			if self.best_model is None:
 				self.best_model = all_model = torch.load(self.config.model_file)
@@ -264,9 +273,15 @@ class DependencyParser:
 				model.encoder = all_model['encoder']
 				model.encoder.mode = 'student'
 		else:
-			model_type = 'last train'
-			model = self.model
-			model.encoder.mode = 'teacher'
+			if use_best_student:
+				all_model = torch.load(self.config.best_student_file)
+				model = all_model['model_students'][model_type]
+				model.encoder = all_model['encoder']
+				model.encoder.mode = 'student'
+			else:
+				model_type = 'last train'
+				model = self.model
+				model.encoder.mode = 'teacher'
 		model.to(self.device)
 		print('evaluating', model_type, 'model')
 		model.eval()

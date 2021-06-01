@@ -5,9 +5,9 @@ class Config:
 		# general
 		self.model_name = 'test_model_biaffine'
 		self.mode = 'train'  # option: 'train', 'evaluate', 'annotate'
-		self.continue_train = True
+		self.continue_train = False
 		self.add_more_vocab = True  # set false in code when load old vocab
-		self.use_small_subset = True
+		self.use_small_subset = False
 		self.use_pos = True
 		self.pos_type = 'lab'  # vn, uni, lab
 		self.use_word_emb_scratch = True
@@ -23,6 +23,7 @@ class Config:
 		self.error_sample_file = os.path.join(self.data_folder, 'error_sample.txt')
 		self.save_folder = os.path.join(self.data_folder, self.model_name)
 		self.model_file = os.path.join(self.save_folder, 'best_model.pt')
+		self.best_student_file = os.path.join(self.save_folder, 'best_student.pt')
 		self.last_model_file = os.path.join(self.save_folder, 'last_model.pt')
 		self.config_file = os.path.join(self.save_folder, 'config.pickle')
 		self.vocab_file = os.path.join(self.save_folder, 'vocab.pickle')
@@ -53,7 +54,7 @@ class Config:
 		self.phobert_subword = 'first'  # sum or first
 		self.fine_tune = False
 		self.word_emb_dim = 75
-		self.minimum_frequency = 50
+		self.minimum_frequency = 300
 		self.phobert_dim = 768
 		self.pos_emb_dim = 50
 		self.charCNN_dim = 0  # set later in code about 150
