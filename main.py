@@ -300,12 +300,12 @@ class DependencyParser:
 				test_batch_length += 1
 				words, index_ids, last_index_position, tags, heads, labels, masks, lengths, origin_words, chars, new_order = batch
 				head_list, lab_list = model.predict_batch(words, index_ids, last_index_position, tags, chars, heads, labels, lengths, masks)
-				gold_head_list += [head.data.numpy()[:lent] for head, lent in zip(heads.cpu(), lengths)]
-				gold_lab_list += [lab.data.numpy()[:lent] for lab, lent in zip(labels.cpu(), lengths)]
-				pos_list += [tag.data.numpy()[:lent] for tag, lent in zip(tags.cpu(), lengths)]
+				gold_head_list += [head.data.numpy()[1:lent+1] for head, lent in zip(heads.cpu(), lengths)]
+				gold_lab_list += [lab.data.numpy()[1:lent+1] for lab, lent in zip(labels.cpu(), lengths)]
+				pos_list += [tag.data.numpy()[1:lent+1] for tag, lent in zip(tags.cpu(), lengths)]
 				test_head_list += head_list
 				test_lab_list += lab_list
-				test_word_list += origin_words
+				test_word_list += origin_words  # remove when write conll
 				test_length_list += lengths
 				new_order_list += new_order
 
@@ -335,8 +335,8 @@ def main():
 	# load config
 	config = Config()
 	utils.ensure_dir(config.save_folder)
-	if os.path.exists(config.config_file) and config.continue_train:
-		config = torch.load(config.config_file)
+	# if os.path.exists(config.config_file) and config.continue_train:
+	# 	config = torch.load(config.config_file)
 
 	# set seed
 	torch.manual_seed(config.seed)

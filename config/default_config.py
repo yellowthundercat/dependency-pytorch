@@ -4,8 +4,8 @@ class Config:
 	def __init__(self):
 		# general
 		self.model_name = 'test_model_biaffine'
-		self.mode = 'train'  # option: 'train', 'evaluate', 'annotate'
-		self.continue_train = False
+		self.mode = 'evaluate'  # option: 'train', 'evaluate', 'annotate'
+		self.continue_train = True
 		self.add_more_vocab = True  # set false in code when load old vocab
 		self.use_small_subset = False
 		self.use_pos = True
