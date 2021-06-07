@@ -5,7 +5,7 @@ class Config:
 		# general
 		self.model_name = 'test_model_biaffine'
 		self.mode = 'train'  # option: 'train', 'evaluate', 'annotate'
-		self.continue_train = True
+		self.continue_train = False
 		self.add_more_vocab = True  # set false in code when load old vocab
 		self.use_small_subset = False
 		self.use_pos = True
@@ -86,6 +86,7 @@ class Config:
 		self.transformer_dropout = 0.2
 
 		# train
+		self.train_percent = 1
 		self.max_step = 40000
 		self.max_waiting_step = 40000  # if not improve in this period -> stop
 		self.teacher_only_step = 0
