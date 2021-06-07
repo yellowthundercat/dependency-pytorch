@@ -218,11 +218,11 @@ class DependencyParser:
 		if self.config.cross_view:
 			for model_index, student_model in enumerate(self.model_students):
 				self.evaluate(model_index)
-		del self.best_model
-		self.best_model = None
-		print('-'*20)
-		print('best student:')
-		self.evaluate(0, use_best=False, use_best_student=True)
+			del self.best_model
+			self.best_model = None
+			print('-'*20)
+			print('best student:')
+			self.evaluate(0, use_best=False, use_best_student=True)
 
 	def check_dev(self, model, mode):
 		stats = Counter()
