@@ -7,13 +7,13 @@ class Config:
 		self.mode = 'train'  # option: 'train', 'evaluate', 'annotate'
 		self.continue_train = False
 		self.add_more_vocab = True  # set false in code when load old vocab
-		self.use_small_subset = False
+		self.use_small_subset = True
 		self.use_pos = True
 		self.pos_type = 'lab'  # vn, uni, lab
 		self.use_word_emb_scratch = False
 		self.use_phobert = True
 		self.use_charCNN = True
-		self.cross_view = True
+		self.cross_view = False
 
 		# file location
 		self.data_folder = 'data'
@@ -51,7 +51,7 @@ class Config:
 		# word level
 		self.concat_first_layer = False
 		self.phobert_layer = 9  # range: [0, ..., 12]
-		self.phobert_subword = 'first'  # sum or first
+		self.phobert_subword = 'average'  # sum, average or first
 		self.fine_tune = False
 		self.word_emb_dim = 75
 		self.minimum_frequency = 300
