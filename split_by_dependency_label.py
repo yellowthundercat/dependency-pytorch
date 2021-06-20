@@ -5,6 +5,7 @@ input_file_name = 'analysis/error_sample_phonlp.txt'
 correct_label_dict = defaultdict(lambda: 0)
 predict_dict = defaultdict(lambda: 0)
 gold_dict = defaultdict(lambda: 0)
+length_dict = defaultdict(lambda: 0)
 input_file = open(input_file_name, encoding='utf-8')
 total_token = 0
 for index, line in enumerate(input_file):
@@ -19,10 +20,11 @@ for index, line in enumerate(input_file):
     total_token += 1
     predict_dict[sys_label] += 1
     gold_dict[gold_label] += 1
+    length_dict[gold_label] += abs(current_position-gold_position)
     if sys_position == gold_position and sys_label == gold_label:
         correct_label_dict[sys_label] += 1
 
-result_list = []  # label percent precision recall f1
+result_list = []  # label percent precision recall f1 average_length
 for key in gold_dict:
     percent = gold_dict[key] / total_token
     if predict_dict[key] == 0:
@@ -37,12 +39,13 @@ for key in gold_dict:
         f1 = 2.0 * (precision*recall) / (precision+recall)
     else:
         f1 = 0
-    result_list.append((key, percent, precision, recall, f1))
+    average_length = length_dict[key] / gold_dict[key]
+    result_list.append((key, percent, precision, recall, f1, average_length))
     # print(f'distance unlabeled {i} {f1*100:.2f}')
 
 result_list.sort(key=lambda x:x[1],reverse=True)
 for item in result_list:
     if item[1] < 0.01:
         break
-    print(f'{item[0]} {item[1]*100:.2f} {item[2]*100:.2f} {item[3]*100:.2f} {item[4]*100:.2f}')
+    print(f'{item[0]} {item[1]*100:.2f} {item[2]*100:.2f} {item[3]*100:.2f} {item[4]*100:.2f} {item[5]:.2f}')
 
