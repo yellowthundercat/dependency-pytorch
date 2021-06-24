@@ -1,5 +1,32 @@
 FORMAT: index word pos system_head gold_head system_label gold_label
 
+1	Tùng	r	2	6	nmod	nmod
+2	khó_chịu	p	0	0	root	mnr
+3	nhưng	r	6	2	nmod	amod
+4	cũng	a	6	6	nmod	root
+5	rất	m	6	6	det	det
+6	xấu_hổ	n	2	2	tmp	amod
+7	.	.	2	2	punct	punct
+
+1	"	"	2	9	punct	punct
+2	Rừng	n	9	9	prp	tpc
+3	của	e	2	2	nmod	nmod
+4	chúng_tôi	p	3	3	pob	pob
+5	thế	p	2	2	prd	nmod
+6	này	p	5	5	det	det
+7	mà	c	9	9	dep	dep
+8	họ	p	9	16	sub	sub
+9	đem	v	0	0	root	root
+10	dao	n	9	9	dob	dob
+11	vào	v	10	9	nmod	vmod
+12	chặt	v	11	11	vmod	prp
+13	,	,	9	9	punct	punct
+14	đuổi	v	9	9	vmod	dep
+15	không	r	16	16	adv	adv
+16	đi	v	14	9	vmod	dep
+17	"	"	2	9	punct	punct
+18	.	.	2	9	punct	punct
+
 1	Cứ	r	2	2	nmod	nmod
 2	thế	p	0	4	root	mnr
 3	đã	r	6	4	nmod	amod
