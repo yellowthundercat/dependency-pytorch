@@ -39,6 +39,7 @@ def init_model(main_self, config):
 		main_self.model = Parser(main_self.encoder, len(main_self.corpus.vocab.l2i), config, 'bi', 'bi', config.teacher_dropout)
 	main_self.saving_step = 0
 	main_self.best_las = main_self.best_uas = 0
+	main_self.best_student = 0
 	main_self.using_amsgrad = False
 	main_self.best_loss = 100
 	if config.cross_view:
@@ -57,6 +58,7 @@ def load_model(main_self, all_model, config):
 	main_self.best_las = all_model['las']
 	main_self.best_loss = all_model['loss']
 	main_self.using_amsgrad = all_model['using_amsgrad']
+	main_self.best_student = all_model['best_student']
 	if config.cross_view:
 		main_self.model_students = all_model['model_students']
 		for student_model in main_self.model_students:
@@ -66,8 +68,10 @@ def load_model(main_self, all_model, config):
 
 def save_model(main_self, config, model_type='best'):
 	file_path = main_self.config.model_file
-	if model_type != 'best':
+	if model_type == 'last':
 		file_path = main_self.config.last_model_file
+	if model_type == 'student':
+		file_path = main_self.config.best_student_file
 	all_model = {
 		'encoder': main_self.encoder,
 		'model': main_self.model,
@@ -77,7 +81,8 @@ def save_model(main_self, config, model_type='best'):
 		'las': main_self.best_las,
 		'loss': main_self.best_loss,
 		'scheduler': main_self.scheduler,
-		'using_amsgrad': main_self.using_amsgrad
+		'using_amsgrad': main_self.using_amsgrad,
+		'best_student': main_self.best_student
 	}
 	if config.cross_view:
 		all_model['model_students'] = main_self.model_students

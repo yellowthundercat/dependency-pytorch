@@ -153,3 +153,8 @@ data/error_analyze
 *.pickle
 
 data/unlabel_embedding/
+analysis/*.txt
+
+data/annotate_result.txt
+
+image/

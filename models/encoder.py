@@ -3,10 +3,8 @@ from torch import nn
 from torch.nn.utils.rnn import pad_packed_sequence, pack_padded_sequence, pack_sequence, PackedSequence
 import numpy as np
 from models.charCNN import ConvolutionalCharEmbedding
-from models.pos_scorer import Pos_scorer
 from models.other_transformer import TransformerEncoder
 from preprocess.dataset import PAD_INDEX
-from transformers import AutoModel
 from models.dropout import WordDropout
 from models.hlstm import HighwayLSTM
 
@@ -19,8 +17,8 @@ class Encoder(nn.Module):
 
 		self.word_project = nn.Embedding(word_vocab_length, config.word_emb_dim)
 
-		if config.use_phobert:
-			self.phobert = AutoModel.from_pretrained("vinai/phobert-base", output_hidden_states=True)
+		# if config.use_phobert:
+		# 	self.phobert = AutoModel.from_pretrained("vinai/phobert-base", output_hidden_states=True)
 		if config.use_pos:
 			self.pos_embedding = nn.Embedding(pos_vocab_length, config.pos_emb_dim)
 		if config.use_charCNN:
@@ -78,26 +76,28 @@ class Encoder(nn.Module):
 			inputs += [pack(word_emb)]
 
 		if self.config.use_phobert:
-			origin_features = self.phobert(index_ids)
-			features = origin_features[2][self.config.phobert_layer]
-			phobert_embs = []
-			for sentence_index in range(last_index_position.size(0)):
-				phobert_embedding = []
-				last_index_position_list = last_index_position[sentence_index]
-				for word_index in range(last_index_position.size(1) - 2):
-					start_index = last_index_position_list[word_index]
-					end_index = last_index_position_list[word_index + 1]
-					if end_index > start_index:
-						if self.config.phobert_subword == 'first':
-							end_index = start_index + 1
-						one_emb = features[sentence_index][start_index:end_index]
-						# one_emb = torch.sum(one_emb, 0).cpu().data.numpy().tolist()
-						one_emb = torch.sum(one_emb, 0)
-					else:
-						one_emb = torch.zeros(self.config.phobert_dim, device=self.device)
-					phobert_embedding.append(one_emb)
-				phobert_embs.append(torch.stack(phobert_embedding, dim=0))
-			phobert_embs = torch.stack(phobert_embs, dim=0)
+			# when not finetune index_ids is phobert embedding
+
+			# origin_features = self.phobert(index_ids)
+			# features = origin_features[2][self.config.phobert_layer]
+			# phobert_embs = []
+			# for sentence_index in range(last_index_position.size(0)):
+			# 	phobert_embedding = []
+			# 	last_index_position_list = last_index_position[sentence_index]
+			# 	for word_index in range(last_index_position.size(1) - 2):
+			# 		start_index = last_index_position_list[word_index]
+			# 		end_index = last_index_position_list[word_index + 1]
+			# 		if end_index > start_index:
+			# 			if self.config.phobert_subword == 'first':
+			# 				end_index = start_index + 1
+			# 			one_emb = features[sentence_index][start_index:end_index]
+			# 			# one_emb = torch.sum(one_emb, 0).cpu().data.numpy().tolist()
+			# 			one_emb = torch.sum(one_emb, 0)
+			# 		else:
+			# 			one_emb = torch.zeros(self.config.phobert_dim, device=self.device)
+			# 		phobert_embedding.append(one_emb)
+			# 	phobert_embs.append(torch.stack(phobert_embedding, dim=0))
+			phobert_embs = index_ids
 			inputs += [pack(phobert_embs)]
 
 		if self.config.use_charCNN:

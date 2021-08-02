@@ -3,25 +3,28 @@ import os
 class Config:
 	def __init__(self):
 		# general
-		self.model_name = 'test_model_biaffine'
-		self.mode = 'train'  # option: 'train', 'evaluate', 'annotate'
+		self.model_name = 'test_model_biaffine_85.46_78.54'
+		self.mode = 'annotate'  # option: 'train', 'evaluate', 'annotate'
 		self.continue_train = True
-		self.use_small_subset = True
+		self.add_more_vocab = True  # set false in code when load old vocab
+		self.use_small_subset = False
 		self.use_pos = True
 		self.pos_type = 'lab'  # vn, uni, lab
-		self.use_word_emb_scratch = True
+		self.use_word_emb_scratch = False
 		self.use_phobert = True
 		self.use_charCNN = True
-		self.cross_view = True
+		self.cross_view = False
 
 		# file location
 		self.data_folder = 'data'
 		self.data_small_folder = os.path.join(self.data_folder, 'data_small')
 		self.parsing_file = os.path.join(self.data_folder, 'parsing.txt')
 		self.annotate_file = os.path.join(self.data_folder, 'annotate.txt')
+		self.annotate_result_file = os.path.join(self.data_folder, 'annotate_result.txt')
 		self.error_sample_file = os.path.join(self.data_folder, 'error_sample.txt')
 		self.save_folder = os.path.join(self.data_folder, self.model_name)
 		self.model_file = os.path.join(self.save_folder, 'best_model.pt')
+		self.best_student_file = os.path.join(self.save_folder, 'best_student.pt')
 		self.last_model_file = os.path.join(self.save_folder, 'last_model.pt')
 		self.config_file = os.path.join(self.save_folder, 'config.pickle')
 		self.vocab_file = os.path.join(self.save_folder, 'vocab.pickle')
@@ -49,10 +52,10 @@ class Config:
 		# word level
 		self.concat_first_layer = False
 		self.phobert_layer = 9  # range: [0, ..., 12]
-		self.phobert_subword = 'first'  # sum or first
+		self.phobert_subword = 'first'  # sum, average or first
 		self.fine_tune = False
 		self.word_emb_dim = 75
-		self.minimum_frequency = 3
+		self.minimum_frequency = 100
 		self.phobert_dim = 768
 		self.pos_emb_dim = 50
 		self.charCNN_dim = 0  # set later in code about 150
@@ -74,8 +77,8 @@ class Config:
 		# encoder
 		self.encoder = 'biLSTM'  # biLSTM, transformer
 		self.rnn_size = 400  # output encode = 4*rnn_size (2 biLSTM)
-		self.rnn_1_depth = 1
-		self.rnn_2_depth = 2
+		self.rnn_1_depth = 2
+		self.rnn_2_depth = 1
 		self.transformer_1_depth = 2
 		self.transformer_2_depth = 2
 		self.transformer_dim = 128
@@ -84,8 +87,9 @@ class Config:
 		self.transformer_dropout = 0.2
 
 		# train
-		self.max_step = 20000
-		self.max_waiting_step = 20000  # if not improve in this period -> stop
+		self.train_percent = 1
+		self.max_step = 40000
+		self.max_waiting_step = 40000  # if not improve in this period -> stop
 		self.teacher_only_step = 0
 		self.batch_size = 32
 		self.print_step = 50
@@ -111,7 +115,6 @@ class Config:
 		# momentum for cross-view training
 		self.lr_momentum = 0.5  # base learning rate
 		self.student_lr_momentum = 0.2
-		self.pos_lambda = 1
 		self.momentum = 0.9  # momentum
 		self.grad_clip = 1.0  # maximum gradient norm during optimization
 		self.warm_up_steps = 5000.0  # linearly ramp up the lr for this many steps
