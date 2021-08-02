@@ -5,10 +5,12 @@ import random
 import torch
 import numpy as np
 from transformers import AutoTokenizer, AutoModel
+import nltk
+from graphviz import Source
 
 from config.default_config import Config
 from utils import utils
-from preprocess import dataset
+from preprocess import dataset, sentence_level
 from utils.find_error_example import write_file_error_example
 from utils import utils_train
 from torch import nn, optim
@@ -21,38 +23,21 @@ class DependencyParser:
 
 		# word embedding
 		print('preprocess corpus')
-		tokenizer = phobert = None
+		self.tokenizer = self.phobert = None
 		if config.use_phobert:
-			tokenizer = AutoTokenizer.from_pretrained("vinai/phobert-base")
-			phobert = AutoModel.from_pretrained("vinai/phobert-base", output_hidden_states=True).to(self.device)
-		self.corpus = dataset.Corpus(config, self.device, tokenizer, phobert)
+			self.tokenizer = AutoTokenizer.from_pretrained("vinai/phobert-base")
+			self.phobert = AutoModel.from_pretrained("vinai/phobert-base", output_hidden_states=True).to(self.device)
+		self.corpus = dataset.Corpus(config, self.device, self.tokenizer, self.phobert)
 		if config.cross_view and config.mode == 'train':
 			print('prepare unlabel data')
-			self.unlabel_corpus = dataset.Unlabel_Corpus(config, self.device, self.corpus.vocab, tokenizer, phobert)
+			self.unlabel_corpus = dataset.Unlabel_Corpus(config, self.device, self.corpus.vocab, self.tokenizer, self.phobert)
 		print('total vocab word', len(self.corpus.vocab.w2i))
 		print('total vocab character', len(self.corpus.vocab.c2i))
 		print('total vocab postag', len(self.corpus.vocab.t2i))
 		self.config.pos_label_dim = len(self.corpus.vocab.t2i)
 
-		# model
-		is_best = os.path.exists(config.model_file)
-		is_last = os.path.exists(config.last_model_file)
-		if (is_last or is_best) and config.continue_train:
-			print('We will continue training')
-			if is_last:
-				all_model = torch.load(config.last_model_file)
-			else:
-				all_model = torch.load(config.model_file)
-			utils_train.load_model(self, all_model, config)
-		else:
-			print('We will train model from scratch')
-			utils_train.init_model(self, config)
 		self.best_model = None
-		self.encoder.device = self.device
-		self.model.to(self.device)
-		if config.cross_view:
-			for model_student in self.model_students:
-				model_student.to(self.device)
+
 
 	def internal_train_student(self, words, index_ids, last_index_position, tags, chars, heads, labels, masks, lengths):
 		total_loss = 0
@@ -112,14 +97,26 @@ class DependencyParser:
 		return batch, batches
 
 	def train(self):
-		print('start training')
+		# model
+		is_best = os.path.exists(self.config.model_file)
+		is_last = os.path.exists(self.config.last_model_file)
+		if (is_last or is_best) and self.config.continue_train:
+			print('We will continue training')
+			if is_last:
+				all_model = torch.load(self.config.last_model_file, map_location=self.device)
+			else:
+				all_model = torch.load(self.config.model_file, map_location=self.device)
+			utils_train.load_model(self, all_model, self.config)
+		else:
+			print('We will train model from scratch')
+			utils_train.init_model(self, self.config)
+		self.encoder.device = self.device
+		self.model.to(self.device)
+		if self.config.cross_view:
+			for model_student in self.model_students:
+				model_student.to(self.device)
 
-		# fine tune bert
-		# if self.config.use_phobert:
-		# 	tsfm = self.encoder.phobert
-		# 	for child in tsfm.children():
-		# 		for param in child.parameters():
-		# 			param.requires_grad = self.config.fine_tune
+		print('start training')
 
 		history = defaultdict(list)
 		total_teacher_loss = total_student_loss = 0
@@ -261,7 +258,7 @@ class DependencyParser:
 	def evaluate(self, model_type=-1, use_best=True, use_best_student=False):  # -1 is teacher
 		if use_best:
 			if self.best_model is None:
-				self.best_model = all_model = torch.load(self.config.model_file)
+				self.best_model = all_model = torch.load(self.config.model_file, map_location=self.device)
 			else:
 				all_model = self.best_model
 			if model_type == -1:
@@ -274,7 +271,7 @@ class DependencyParser:
 				model.encoder.mode = 'student'
 		else:
 			if use_best_student:
-				all_model = torch.load(self.config.best_student_file)
+				all_model = torch.load(self.config.best_student_file, map_location=self.device)
 				model = all_model['model_students'][model_type]
 				model.encoder = all_model['encoder']
 				model.encoder.mode = 'student'
@@ -325,18 +322,56 @@ class DependencyParser:
 			print(f'Evaluating Result: UAS = {uas:.4f}, LAS = {las:.4}')
 
 	def annotate(self):
-		print('parsing')
-		input_file = open(self.config.annotate_file, encoding='utf-8')
-		sentence = input_file.read()
-		# waiting pos
+		print('parsing ...')
+		input_file = self.config.annotate_file
+		unlabel_list = sentence_level.read_unlabel_data(input_file, self.tokenizer, self.corpus.vocab, self.config)
+		current_dataset = dataset.Dataset(self.config, unlabel_list, self.corpus.vocab, self.device, self.phobert, False)
+
+		all_model = torch.load(self.config.model_file, map_location=self.device)
+		model = all_model['model']
+		model.encoder = all_model['encoder']
+		model.encoder.mode = 'teacher'
+		model.to(self.device)
+		model.eval()
+
+		test_batches = current_dataset.batches(self.config.batch_size, shuffle=False, length_ordered=False)
+		test_word_list = []
+		test_length_list = []
+		test_head_list = []
+		test_lab_list = []
+		new_order_list = []
+		with torch.no_grad():
+			for batch in test_batches:
+				words, index_ids, last_index_position, tags, heads, labels, masks, lengths, origin_words, chars, new_order = batch
+				head_list, lab_list = model.predict_batch(words, index_ids, last_index_position, tags, chars, heads,
+														  labels, lengths, masks)
+				test_head_list += head_list
+				test_lab_list += lab_list
+				test_word_list += origin_words  # remove when write conll
+				test_length_list += lengths
+				new_order_list += new_order
+
+			test_head_list = utils.unsort(test_head_list, new_order_list)
+			test_lab_list = utils.unsort(test_lab_list, new_order_list)
+			test_word_list = utils.unsort(test_word_list, new_order_list)
+
+			utils.write_conll(self.corpus.vocab, test_word_list, test_head_list, test_lab_list, test_length_list, self.config.annotate_result_file)
+			for index in range(len(test_length_list)):
+				nltk_str = []
+				for (w, h, rel) in zip(test_word_list[index], test_head_list[index], test_lab_list[index]):
+					relation_type = self.corpus.vocab.i2l[rel]
+					if relation_type == 'root':
+						relation_type = 'ROOT'
+					nltk_str.append(f'{w} _ {h} {relation_type}')
+				dot_repr = nltk.DependencyGraph(nltk_str).to_dot()
+				source = Source(dot_repr, filename=f'image/dep_tree_{index}', format="png")
+				source.view()
 
 
 def main():
 	# load config
 	config = Config()
 	utils.ensure_dir(config.save_folder)
-	# if os.path.exists(config.config_file) and config.continue_train:
-	# 	config = torch.load(config.config_file)
 
 	# set seed
 	torch.manual_seed(config.seed)

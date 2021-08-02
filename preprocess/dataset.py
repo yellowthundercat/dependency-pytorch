@@ -354,25 +354,32 @@ class Dataset:
 
 class Corpus:
 	def __init__(self, config, device, tokenizer, phobert):
-		train_list = read_data(config.pos_train_file, tokenizer, config)
-		dev_list = read_data(config.pos_dev_file, tokenizer, config)
-		test_list = read_data(config.pos_test_file, tokenizer, config)
+		train_list = []
+		dev_list = []
+		test_list = []
+		if config.mode == 'train' or config.mode == 'evaluate':
+			train_list = read_data(config.pos_train_file, tokenizer, config)
+			dev_list = read_data(config.pos_dev_file, tokenizer, config)
+			test_list = read_data(config.pos_test_file, tokenizer, config)
 
-		if config.train_percent < 1:
+		if config.train_percent < 1 and config.mode == 'train':
 			real_train = int(len(train_list) * config.train_percent)
 			train_list = train_list[:real_train]
 			print('sentence use for train', real_train)
 
 		if os.path.exists(config.vocab_file) and config.continue_train:
+			print('use previous vocab')
 			self.vocab = torch.load(config.vocab_file)
 			config.add_more_vocab = False
 		else:
+			print('build new vocab')
 			self.vocab = Vocab(config, train_list)
 			torch.save(self.vocab, config.vocab_file)
 		if config.mode == 'train':
 			self.train = Dataset(config, train_list, self.vocab, device, phobert, False, cache=True)
 			self.dev = Dataset(config, dev_list, self.vocab, device, phobert, True)
-		self.test = Dataset(config, test_list, self.vocab, device, phobert, True)
+		if config.mode == 'train' or config.mode == 'evaluate':
+			self.test = Dataset(config, test_list, self.vocab, device, phobert, True)
 
 class Unlabel_Corpus:
 	def __init__(self, config, device, vocab, tokenizer, phobert):

@@ -3,10 +3,8 @@ from torch import nn
 from torch.nn.utils.rnn import pad_packed_sequence, pack_padded_sequence, pack_sequence, PackedSequence
 import numpy as np
 from models.charCNN import ConvolutionalCharEmbedding
-from models.pos_scorer import Pos_scorer
 from models.other_transformer import TransformerEncoder
 from preprocess.dataset import PAD_INDEX
-from transformers import AutoModel
 from models.dropout import WordDropout
 from models.hlstm import HighwayLSTM
 

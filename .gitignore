@@ -154,3 +154,7 @@ data/error_analyze
 
 data/unlabel_embedding/
 analysis/*.txt
+
+data/annotate_result.txt
+
+image/

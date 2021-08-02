@@ -3,11 +3,11 @@ import os
 class Config:
 	def __init__(self):
 		# general
-		self.model_name = 'test_model_biaffine'
-		self.mode = 'train'  # option: 'train', 'evaluate', 'annotate'
-		self.continue_train = False
+		self.model_name = 'test_model_biaffine_85.46_78.54'
+		self.mode = 'annotate'  # option: 'train', 'evaluate', 'annotate'
+		self.continue_train = True
 		self.add_more_vocab = True  # set false in code when load old vocab
-		self.use_small_subset = True
+		self.use_small_subset = False
 		self.use_pos = True
 		self.pos_type = 'lab'  # vn, uni, lab
 		self.use_word_emb_scratch = False
@@ -20,6 +20,7 @@ class Config:
 		self.data_small_folder = os.path.join(self.data_folder, 'data_small')
 		self.parsing_file = os.path.join(self.data_folder, 'parsing.txt')
 		self.annotate_file = os.path.join(self.data_folder, 'annotate.txt')
+		self.annotate_result_file = os.path.join(self.data_folder, 'annotate_result.txt')
 		self.error_sample_file = os.path.join(self.data_folder, 'error_sample.txt')
 		self.save_folder = os.path.join(self.data_folder, self.model_name)
 		self.model_file = os.path.join(self.save_folder, 'best_model.pt')
@@ -51,10 +52,10 @@ class Config:
 		# word level
 		self.concat_first_layer = False
 		self.phobert_layer = 9  # range: [0, ..., 12]
-		self.phobert_subword = 'average'  # sum, average or first
+		self.phobert_subword = 'first'  # sum, average or first
 		self.fine_tune = False
 		self.word_emb_dim = 75
-		self.minimum_frequency = 300
+		self.minimum_frequency = 100
 		self.phobert_dim = 768
 		self.pos_emb_dim = 50
 		self.charCNN_dim = 0  # set later in code about 150
@@ -114,7 +115,6 @@ class Config:
 		# momentum for cross-view training
 		self.lr_momentum = 0.5  # base learning rate
 		self.student_lr_momentum = 0.2
-		self.pos_lambda = 1
 		self.momentum = 0.9  # momentum
 		self.grad_clip = 1.0  # maximum gradient norm during optimization
 		self.warm_up_steps = 5000.0  # linearly ramp up the lr for this many steps
