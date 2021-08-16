@@ -1,2 +1,3 @@
-Tôi/Pp là/Vc một/Nq học_sinh/Nn ./PU
-Sinh_viên/Nn đang/R ngồi/Vv trước/Nn cổng/Nn trường/Nn Khoa_học/Nn Tự_nhiên/Nn ăn/Vv cháo_lòng/Nn ./PU
+Đây/Pd là/Vc một/Nq ví_dụ/Nn rất/R hay/Aa ./PU
+Học_sinh/Nn trường/Nn tiểu_học/Nn rất/R chăm_chỉ/Aa ./PU
+Hôm_nay/Nt ,/PU tôi/Pp đi/Vv học/Vv ./PU

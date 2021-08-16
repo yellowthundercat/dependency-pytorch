@@ -45,10 +45,6 @@ class Config:
 			self.pos_dev_file = os.path.join(train_data_folder, 'uni_dev.txt')
 			self.pos_test_file = os.path.join(train_data_folder, 'uni_test.txt')
 
-		# for annotation
-		self.input_filename = 'input.txt'
-		self.output_filename = 'output.txt'
-
 		# word level
 		self.concat_first_layer = False
 		self.phobert_layer = 9  # range: [0, ..., 12]
