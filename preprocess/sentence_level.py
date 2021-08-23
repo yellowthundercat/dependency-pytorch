@@ -48,7 +48,7 @@ def unlabel_sentence(word_list, pos_list, tokenizer):
 	word_list = [ROOT_TOKEN] + word_list
 	pos_list = [ROOT_TAG] + pos_list
 	lent = len(word_list)
-	return Sentence(word_list, ['0']*lent, pos_list, [0]*lent, [0]*lent, tokenizer)
+	return Sentence(word_list, pos_list, pos_list, [0]*lent, [0]*lent, tokenizer)
 
 def read_unlabel_data(file_name, tokenizer, vocab, config):
 	sentence_list = []
