@@ -9,7 +9,7 @@ class Config:
 		self.add_more_vocab = True  # set false in code when load old vocab
 		self.use_small_subset = False
 		self.use_pos = True
-		self.pos_type = 'vn'  # vn, uni, lab
+		self.pos_type = 'vn'  # vn, uni, lab (vn data 10 column, other 11 - additional pos)
 		self.use_word_emb_scratch = False
 		self.use_phobert = True
 		self.use_charCNN = True
