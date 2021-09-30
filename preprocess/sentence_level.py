@@ -64,7 +64,7 @@ def read_unlabel_data(file_name, tokenizer, vocab, config):
 				vocab.add_word(word_part, unk=False, is_label=False)
 			word_list.append(word_part)
 			pos_list.append(pos)
-		if 2 < len(word_list) < 50:
+		if True:
 			sentence_list.append(unlabel_sentence(word_list, pos_list, tokenizer))
 	return sentence_list
 

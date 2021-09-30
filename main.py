@@ -325,7 +325,8 @@ class DependencyParser:
 		print('parsing ...')
 		input_file = self.config.annotate_file
 		unlabel_list = sentence_level.read_unlabel_data(input_file, self.tokenizer, self.corpus.vocab, self.config)
-		current_dataset = dataset.Dataset(self.config, unlabel_list, self.corpus.vocab, self.device, self.phobert, False)
+		current_dataset = dataset.Dataset(self.config, unlabel_list, self.corpus.vocab, self.device, self.phobert, origin_ordered=True)
+		print(f'parsing {len(current_dataset.lengths)} sentences')
 
 		all_model = torch.load(self.config.model_file, map_location=self.device)
 		model = all_model['model']
@@ -356,16 +357,17 @@ class DependencyParser:
 			test_word_list = utils.unsort(test_word_list, new_order_list)
 
 			utils.write_conll(self.corpus.vocab, test_word_list, test_head_list, test_lab_list, test_length_list, self.config.annotate_result_file)
-			for index in range(len(test_length_list)):
-				nltk_str = []
-				for (w, h, rel) in zip(test_word_list[index], test_head_list[index], test_lab_list[index]):
-					relation_type = self.corpus.vocab.i2l[rel]
-					if relation_type == 'root':
-						relation_type = 'ROOT'
-					nltk_str.append(f'{w} _ {h} {relation_type}')
-				dot_repr = nltk.DependencyGraph(nltk_str).to_dot()
-				source = Source(dot_repr, filename=f'image/dep_tree_{index}', format="png")
-				source.view()
+			print(f'finish {len(test_length_list)} sentences')
+			# for index in range(len(test_length_list)):
+			# 	nltk_str = []
+			# 	for (w, h, rel) in zip(test_word_list[index], test_head_list[index], test_lab_list[index]):
+			# 		relation_type = self.corpus.vocab.i2l[rel]
+			# 		if relation_type == 'root':
+			# 			relation_type = 'ROOT'
+			# 		nltk_str.append(f'{w} _ {h} {relation_type}')
+			# 	dot_repr = nltk.DependencyGraph(nltk_str).to_dot()
+			# 	source = Source(dot_repr, filename=f'image/dep_tree_{index}', format="png")
+			# 	source.view()
 
 
 def main():
