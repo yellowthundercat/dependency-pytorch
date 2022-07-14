@@ -1,5 +1,5 @@
 # dependency-pytorch
-This is pytorch implementation of paper APPLYING CROSS-VIEW TRAINING FOR DEPENDENCY PARSING IN VIETNAMESE
+This is pytorch implementation of paper APPLYING CROSS-VIEW TRAINING FOR DEPENDENCY PARSING IN VIETNAMESE, 2021
 
 ## package
 - torch (https://pytorch.org/)
